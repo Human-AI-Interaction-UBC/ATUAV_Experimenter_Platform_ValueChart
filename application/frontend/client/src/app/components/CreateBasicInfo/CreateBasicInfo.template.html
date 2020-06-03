@@ -1,0 +1,35 @@
+<label class="control-label">Chart name.</label>
+<input class="form-control required" type="text" #a [ngModel]="valueChart.getName()" (ngModelChange)="valueChart.setName(a.value); resetErrorMessages()" maxlength="100" required />
+<label class="control-label">Chart description.</label>
+<input  class="form-control" type="text" #b [ngModel]="valueChart.getDescription()" (ngModelChange)="valueChart.setDescription(b.value)" maxlength="100" />
+<label class="control-label">Password.</label>
+<input class="form-control required" type="text" #c [ngModel]="valueChart.password" (ngModelChange)="valueChart.password = c.value; resetErrorMessages()"maxlength="100" required />
+<div class="input-group">
+<label class="control-label">What kind of chart would you like to create?</label>
+<div class="radio">
+<label><input type="radio" [(ngModel)]="type" [checked]="type === ChartType.Individual" [value]="ChartType.Individual" (click)="confirmConvert()">Individual ValueChart</label>
+</div>
+<div class="radio">
+<label><input type="radio" [(ngModel)]="type" [checked]="type === ChartType.Group" [value]="ChartType.Group" (click)="this.valueChart.setType(ChartType.Group)">Group ValueChart</label>
+</div>
+</div>
+
+<!-- Error Messages -->
+<div *ngIf="validationTriggered">
+    <div *ngFor="let message of errorMessages" 
+                 class="alert alert-danger">
+              {{message}}
+    </div>
+</div>
+
+<NotificationModal
+[display]="displayModal"
+[title]="'Convert to Individual Chart'"
+[body]="'Are you sure you want to convert this to an individual chart? Other users\' data will be lost.'"
+[actionEnabled]="true"
+[noActionText]="'Cancel'"
+[actionText]="'Ok'"
+[actionFunction]="convertToIndividual.bind(this)"
+[noActionFunction]="resetType.bind(this)"
+(modalClosed)="displayModal = $event">
+</NotificationModal>

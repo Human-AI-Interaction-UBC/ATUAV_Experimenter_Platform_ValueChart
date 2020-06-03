@@ -1,0 +1,92 @@
+<div class="">
+	<div class="flex-column creation-page">
+		<h2 *ngIf="currentUserService.isLoggedIn()" class="my-valuechart-header text-center">My ValueCharts</h2>
+		<div *ngIf="currentUserService.isLoggedIn()" class="col-xs-offset-1 col-xs-10">
+			<div class="flex-row column-container well well-lg">
+				<table class="table table-hover">
+					<thead>
+						<th></th>
+						<th>Name</th>
+						<th>Password</th>
+						<th>Number of Users</th>
+						<th>Creation</th>
+						<th>User Changes</th>
+					</thead>
+					<tbody>
+						<tr *ngFor="let chartSummary of valueChartOwnerships; let i = index ">
+							<th score="row">{{i + 1}}</th>
+							<td>{{chartSummary.name}}</td>
+							<td>{{chartSummary.password}}</td>
+							<td>{{chartSummary.numUsers}}</td>
+							<td>{{getStatusText(chartSummary)}}</td>
+							<td>{{getChangesPermittedText(chartSummary)}}</td>
+							<td><button class="btn btn-sm btn-default" [disabled]="getStatusText(chartSummary) === 'Incomplete'" (click)="openValueChart(chartSummary._id, chartSummary.password)">View</button></td>
+							<td><button class="btn btn-sm btn-default" (click)="editValueChart(chartSummary._id, chartSummary.password)">Edit</button></td>
+							<td><button class="btn btn-sm btn-default" (click)="setValueChart(chartSummary._id, chartSummary.password)" data-toggle="modal" data-target="#export-modal">Export</button></td>
+							<td><button class="btn btn-sm btn-default" (click)="displayDeleteChart(chartSummary._id, chartSummary.password)">Delete</button></td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+		<h2 *ngIf="currentUserService.isLoggedIn()" class="my-valuechart-memberships-header text-center">My ValueChart Memberships</h2>
+		<div *ngIf="currentUserService.isLoggedIn()" class="col-xs-offset-1 col-xs-10 demo-table">
+			<div class="flex-row column-container well well-lg">
+				<table class="table table-hover" >
+					<thead>
+						<th></th>
+						<th>Name</th>
+						<th>Password</th>
+						<th>Number of Users</th>
+						<th>Creation</th>
+						<th>User Changes</th>
+					</thead>
+					<tbody>
+						<tr *ngFor="let chartSummary of valueChartMemberships; let i = index ">
+							<th score="row">{{i + 1}}</th>
+							<td>{{chartSummary.name}}</td>
+							<td>{{chartSummary.password}}</td>
+							<td>{{chartSummary.numUsers}}</td>
+							<td>{{getStatusText(chartSummary)}}</td>
+							<td>{{ !chartSummary.lockedByCreator && !chartSummary.lockedBySystem ? 'Allowed': 'Prevented'}}</td>
+							<td><button class="btn btn-sm btn-default" [disabled]="getStatusText(chartSummary) === 'Incomplete'" (click)="openValueChart(chartSummary._id, chartSummary.password)">View</button></td>
+							<td><button class="btn btn-sm btn-default" [disabled]="getStatusText(chartSummary) === 'Incomplete'" (click)="editPreferences(chartSummary._id, chartSummary.name, chartSummary.password)">Edit Preferences</button></td>
+							<td><button class="btn btn-sm btn-default" (click)="displayLeaveChart(chartSummary._id, chartSummary.password)">Leave Chart</button></td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+		<div *ngIf="!currentUserService.isLoggedIn()" class="col-xs-offset-3 col-xs-6 demo-table">
+			<h2 class="text-center">Select a Demo ValueChart</h2>
+			<div class="flex-row column-container well well-lg">
+				<table class="table table-hover">
+					<thead>
+						<th></th>
+						<th>ValueChart Name</th>
+						<th>Type</th>
+					</thead>
+					<tbody>
+						<tr *ngFor="let demoChart of demoValueCharts; let i = index ">
+							<th score="row">{{i + 1}}</th>
+							<td>{{demoChart.name}}</td>
+							<td>{{demoChart.type}}</td>
+							<td><button class="btn btn-sm btn-default" (click)="selectDemoValueChart(demoChart)">Select</button></td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+</div>
+
+<NotificationModal
+[display]="displayModal"
+[title]="modalTitle"
+[body]="modalBody"
+[actionEnabled]="modalActionEnabled"
+[noActionText]="'Cancel'"
+[actionText]="'Ok'"
+[actionFunction]="modalActionFunction"
+(modalClosed)="displayModal = $event">
+</NotificationModal>
