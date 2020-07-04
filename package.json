@@ -31,7 +31,7 @@
     "express-session": "^1.15.5",
     "express-ws": "^3.0.0",
     "jquery": "^3.2.1",
-    "lodash": "^4.17.4",
+    "lodash": "^4.17.13",
     "mongodb": "^2.2.31",
     "monk": "^4.1.0",
     "morgan": "^1.8.2",
