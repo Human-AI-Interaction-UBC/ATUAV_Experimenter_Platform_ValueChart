@@ -378,7 +378,6 @@ export class RootComponent implements OnInit {
 		}
 		return true;
 	}
-
 }
 
 export const ws: WebSocket = new WebSocket("ws://localhost:8888/websocket");
@@ -386,5 +385,16 @@ ws.onopen = function() {
 	ws.send("opened connection");
 }
 ws.onmessage = function (evt) {
+	var obj = JSON.parse(evt.data);
+	if (obj.remove !== null) {
+// handle removal
+	} else if (obj.deliver !== null) {
+// handle delivery
+		handleDelivery(obj);
+	}
 	alert(evt.data);
+}
+
+function handleDelivery(obj: Object): void {
+console.log("Received a deliver call");
 }
