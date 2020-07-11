@@ -80,10 +80,12 @@ class Application(tornado.web.Application):
         #connects to database
         self.conn = sqlite3.connect('database.db')
         #"global variable" to save current UserID of session
-        UserID = -1;
+        UserID = -1
         #global variable to track start and end times
-        start_time = '';
-        end_time = '';
+        start_time = ''
+        end_time = ''
+
+        cur_mmd = 1
         #where to look for the html files
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), params.FRONT_END_TEMPLATE_PATH),

@@ -23,8 +23,8 @@ class SimulationSocket(object):
         i = 1
         #time.sleep(10)
         while True:
-            msg1 = "400,550,"+str(i)
-            msg2 = "600,550,"+str(i)
+            msg1 = "200,450,"+str(i)
+            msg2 = "400,450,"+str(i)
             msg = msg1
             current_message = 1
             print (msg)

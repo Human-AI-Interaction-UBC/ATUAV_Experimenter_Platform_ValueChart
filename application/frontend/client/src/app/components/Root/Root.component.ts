@@ -390,11 +390,11 @@ ws.onmessage = function (evt) {
 // handle removal
 	} else if (obj.deliver !== null) {
 // handle delivery
-		handleDelivery(obj);
+		// handleDelivery(obj);
 	}
 	alert(evt.data);
 }
 
-function handleDelivery(obj: Object): void {
-console.log("Received a deliver call");
-}
+// function handleDelivery(obj: Object): void {
+// console.log("Received a deliver call");
+// }
