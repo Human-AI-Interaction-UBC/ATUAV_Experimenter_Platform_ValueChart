@@ -11,7 +11,7 @@ PILOT_CONDITION_NO_REMOVAL = True
 #PILOT mmd subset to load
 #PILOT_MMD_SUBSET = [3,9,11,20,27,60,74] #try and ensure 74 is in removal
 #PILOT_MMD_SUBSET = [5,28,30,62,66,72,76]
-PILOT_MMD_SUBSET = [5]
+PILOT_MMD_SUBSET = [1,5]
 
 # Project paths:
 # Reference highlighting rules

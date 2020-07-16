@@ -320,6 +320,7 @@ class ApplicationStateController():
                 to the polygon coordinates of their respective aoi's
         """
         mapping = {}
+        print("current task: " + str(self.currTask))
         query_results = self.conn.execute("SELECT user_state.event_name, polygon FROM aoi, user_state, user_state_task WHERE user_state.aoi = aoi.name AND aoi.task = ? AND user_state.event_name = user_state_task.event_name AND user_state_task.task = ? AND type = 'fix'", (str(self.currTask), str(self.currTask)))
         aoi_results = query_results.fetchall()
         for aoi in aoi_results:

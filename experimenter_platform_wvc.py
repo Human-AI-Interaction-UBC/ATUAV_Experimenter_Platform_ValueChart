@@ -43,7 +43,7 @@ class Application(tornado.web.Application):
         #init platform and connects url with code
         self.tobii_controller = TobiiControllerNewSdk()
         self.tobii_controller.activate()
-        self.app_state_control = ApplicationStateController(0)
+        self.app_state_control = ApplicationStateController(1)
         self.adaptation_loop = AdaptationLoop(self.app_state_control)
 
         self.fixation_component = FixationDetector(self.tobii_controller, self.adaptation_loop)
@@ -85,7 +85,6 @@ class Application(tornado.web.Application):
         start_time = ''
         end_time = ''
 
-        cur_mmd = 1
         #where to look for the html files
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), params.FRONT_END_TEMPLATE_PATH),
@@ -102,6 +101,8 @@ class MMDWebSocket(ApplicationWebSocket):
         self.websocket_ping_timeout = float("inf")
         self.adaptation_loop.liveWebSocket = self
         print (self.tobii_controller.eyetrackers)
+        self.application.cur_mmd = 1
+        self.application.cur_user = "test"
 
         self.start_detection_components()
         self.tobii_controller.startTracking()
@@ -117,7 +118,8 @@ class MMDWebSocket(ApplicationWebSocket):
             self.tobii_controller.logFixations(user_id = self.application.cur_user, task_id = self.application.cur_mmd)
             self.stop_detection_components()
             self.tobii_controller.stopTracking()
-            self.tobii_controller.destroy()
+            # self.tobii_controller.destroy()
+            
             self.app_state_control.resetApplication(user_id = self.application.cur_user)
             return
 
@@ -126,7 +128,6 @@ class MMDWebSocket(ApplicationWebSocket):
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
-
         self.application.start_time = str(datetime.datetime.now().time())
         self.redirect('/register')
 
