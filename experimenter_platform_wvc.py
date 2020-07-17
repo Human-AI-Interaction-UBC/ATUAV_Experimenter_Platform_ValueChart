@@ -116,11 +116,11 @@ class MMDWebSocket(ApplicationWebSocket):
             return
         else:
             self.tobii_controller.logFixations(user_id = self.application.cur_user, task_id = self.application.cur_mmd)
-            self.stop_detection_components()
-            self.tobii_controller.stopTracking()
+            # self.stop_detection_components()
+            # self.tobii_controller.stopTracking()
             # self.tobii_controller.destroy()
             
-            self.app_state_control.resetApplication(user_id = self.application.cur_user)
+            # self.app_state_control.resetApplication(user_id = self.application.cur_user)
             return
 
     def on_close(self):

@@ -385,16 +385,17 @@ ws.onopen = function() {
 	// ws.send("opened connection from here");
 	// console.log("opened but did not send")
 }
-// ws.onmessage = function (evt) {
-// // 	var obj = JSON.parse(evt.data);
-// // 	if (obj.remove !== null) {
-// // // handle removal
-// // 	} else if (obj.deliver !== null) {
-// // // handle delivery
-// // 		handleDelivery(obj);
-// // 	}
-// 	// alert(evt.data);
-// }
+ws.onmessage = function (evt) {
+	console.log("received some message");
+	var obj = JSON.parse(evt.data);
+	if (obj.remove !== null) {
+// handle removal
+	} else if (obj.deliver !== null) {
+// handle delivery
+		handleDelivery(obj);
+	}
+	// alert(evt.data);
+}
 
 function handleDelivery(obj: Object): void {
 console.log("Received a deliver call");

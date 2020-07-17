@@ -51,7 +51,6 @@ class FixationDetector(DetectionComponent):
         newValid = []
         print(str(self.runOnlineFix))
         while(self.runOnlineFix):
-            print("helloooooo")
             yield self.wait_for_new_data(array_index, array_iterator)
             if (not self.runOnlineFix):
                 break
@@ -66,7 +65,6 @@ class FixationDetector(DetectionComponent):
             while(1):
                 #If start of fixation has not been detected yet
                 if(Sfix == []):
-                    print("fixation start has not been detected")
                     array_index += array_iterator
                     #Wait till array has filled with enough data
                     yield self.wait_for_new_data(array_index, array_iterator)
@@ -81,7 +79,6 @@ class FixationDetector(DetectionComponent):
                     newTime = curTime + nextTime
                     newValid = curValid + nextValid
                     #Run fixation algorithm again with extended array
-                    print("trying to detect fixation")
                     Sfix, Efix = self.fixation_detection(newX, newY, newTime, newValid, params.FIX_MAXDIST, params.FIX_MINDUR)
                     #If no start detected, then we can use this to drop the first |array_iterator| items
                     curX = nextX
@@ -89,7 +86,6 @@ class FixationDetector(DetectionComponent):
                     curTime = nextTime
                     curValid = nextValid
                 else:
-                    print("getting start of fixation")
                     #Get that start fixation x and y values to display on front end
                     SfixTime = Sfix[0]
                     fixIndex = newTime.index(SfixTime)
