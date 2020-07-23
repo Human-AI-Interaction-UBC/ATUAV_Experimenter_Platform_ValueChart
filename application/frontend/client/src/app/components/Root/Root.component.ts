@@ -6,31 +6,31 @@
 */
 
 // Import Angular Classes:
-import { Component } 												from '@angular/core';
-import { OnInit } 													from '@angular/core';
-import { Router }													from '@angular/router';
-import { ApplicationRef } 											from '@angular/core';
+import { Component } from '@angular/core';
+import { OnInit } from '@angular/core';
+import { Router } from '@angular/router';
+import { ApplicationRef } from '@angular/core';
 
 
 // Import Application Classes:
-import { XMLValueChartParserService } 								from '../../services';
-import { CurrentUserService }										from '../../services';
-import { ValueChartService }										from '../../services';
-import { UserHttp }													from '../../http';
-import { ValueChartHttp }											from '../../http';
-import { ValidationService }										from '../../services';
-import { XmlValueChartEncoder }										from '../../utilities';
-import { UserNotificationService }									from '../../services';
+import { XMLValueChartParserService } from '../../services';
+import { CurrentUserService } from '../../services';
+import { ValueChartService } from '../../services';
+import { UserHttp } from '../../http';
+import { ValueChartHttp } from '../../http';
+import { ValidationService } from '../../services';
+import { XmlValueChartEncoder } from '../../utilities';
+import { UserNotificationService } from '../../services';
 
 // Import Model Classes:
-import { ValueChart, ChartType }									from '../../../model';
+import { ValueChart, ChartType } from '../../../model';
 
 // Import Utility Classes:
-import * as Formatter												from '../../utilities/Formatter';
+import * as Formatter from '../../utilities/Formatter';
 
 // Import Types
-import { UserRole }													from '../../../types';
-import { CreatePurpose }											from '../../../types';
+import { UserRole } from '../../../types';
+import { CreatePurpose } from '../../../types';
 
 
 /*
@@ -67,7 +67,7 @@ export class RootComponent implements OnInit {
 	public invalidCredentials: boolean;
 	// Upload validation fields:
 	public displayValidationModal = false;
-	
+
 	public validationMessage: string;
 	public displayModal: boolean = false;
 	public valueChartName: string;
@@ -136,8 +136,8 @@ export class RootComponent implements OnInit {
 		// by this window. This is specifically used by the ScoreFunctionViewerComponent.
 		(<any>window).angularAppRef = this.applicationRef;
 		(<any>window).childWindows = {};					// Initialize a map to used as storage for references to an windows created by this window.
-		
-		this.downloadLink = <HTMLElement> document.querySelector('#download-user-weights');
+
+		this.downloadLink = <HTMLElement>document.querySelector('#download-user-weights');
 	}
 
 	/* 	
@@ -154,12 +154,12 @@ export class RootComponent implements OnInit {
 				.subscribe(logoutResult => {
 					this.currentUserService.setLoggedIn(false);
 					this.currentUserService.setUsername(undefined);
-					(<any> window).destination = '/register';
+					(<any>window).destination = '/register';
 					this.router.navigate(['/register']);
 				});
 		} else {
 			this.currentUserService.setUsername(undefined);
-			(<any> window).destination = '/register';
+			(<any>window).destination = '/register';
 			this.router.navigate(['/register']);
 		}
 	}
@@ -186,9 +186,9 @@ export class RootComponent implements OnInit {
 
 	createValueChart(): void {
 		var valueChart = new ValueChart('', '', this.currentUserService.getUsername());
-		valueChart.setType(ChartType.Individual); 
+		valueChart.setType(ChartType.Individual);
 		this.valueChartService.setValueChart(valueChart);
-		this.router.navigate(['create', CreatePurpose.NewValueChart, 'BasicInfo'], { queryParams: { role: UserRole.Owner }});
+		this.router.navigate(['create', CreatePurpose.NewValueChart, 'BasicInfo'], { queryParams: { role: UserRole.Owner } });
 	}
 
 	/*
@@ -211,7 +211,7 @@ export class RootComponent implements OnInit {
 				valueChart.setName('');											// Erase the ValueChart's name. The owner must give it a new one.
 
 				this.valueChartService.setValueChart(valueChart);
-				this.router.navigate(['create', CreatePurpose.NewValueChart, 'BasicInfo'], { queryParams: { role: UserRole.Owner }});
+				this.router.navigate(['create', CreatePurpose.NewValueChart, 'BasicInfo'], { queryParams: { role: UserRole.Owner } });
 			}
 		};
 		// Read the file as a text string. This should be fine because ONLY XML files should be uploaded.
@@ -249,7 +249,7 @@ export class RootComponent implements OnInit {
 	convertUserWeightsIntoObjectURL(valueChart: ValueChart): string {
 		if (valueChart === undefined)
 			return;
-		
+
 		// Obtain a CSV string for the user defined weights in the given ValueChart. 
 		var weightString: string = this.xmlValueChartEncoder.encodeUserWeights(valueChart);
 		// Convert the string into a blob. We must do this before we can create a download URL for the CSV string.
@@ -289,28 +289,28 @@ export class RootComponent implements OnInit {
 						name and password.
 	*/
 	joinValueChart(chartName: string, chartPassword: string): void {
-		
+
 		this.valueChartHttp.getValueChart(Formatter.nameToID(chartName), chartPassword)
 			.subscribe(
-			(valueChart: ValueChart) => {
-				$('#chart-credentials-modal').modal('hide');
-				if (this.validateChartForJoining(valueChart)) {
-					this.valueChartService.setValueChart(valueChart);
-					let role = valueChart.isMember(this.currentUserService.getUsername()) ? UserRole.Participant : UserRole.UnsavedParticipant;
+				(valueChart: ValueChart) => {
+					$('#chart-credentials-modal').modal('hide');
+					if (this.validateChartForJoining(valueChart)) {
+						this.valueChartService.setValueChart(valueChart);
+						let role = valueChart.isMember(this.currentUserService.getUsername()) ? UserRole.Participant : UserRole.UnsavedParticipant;
 
-					if (this.valueChartService.getValueChart().getMutableObjectives().length > 0)	{
-			  			this.router.navigate(['create', CreatePurpose.NewUser, 'ScoreFunctions'], { queryParams: { role: role }});
-			  		}
-			  		else {
-			  			this.router.navigate(['create', CreatePurpose.NewUser, 'Weights'], { queryParams: { role: role }});
-			  		}
-				}
-			},
-			// Handle Server Errors (like not finding the ValueChart)
-			(error) => {
-				if (error === '404 - Not Found')
-					this.invalidCredentials = true;	// Notify the user that the credentials they input are invalid.
-			});
+						if (this.valueChartService.getValueChart().getMutableObjectives().length > 0) {
+							this.router.navigate(['create', CreatePurpose.NewUser, 'ScoreFunctions'], { queryParams: { role: role } });
+						}
+						else {
+							this.router.navigate(['create', CreatePurpose.NewUser, 'Weights'], { queryParams: { role: role } });
+						}
+					}
+				},
+				// Handle Server Errors (like not finding the ValueChart)
+				(error) => {
+					if (error === '404 - Not Found')
+						this.invalidCredentials = true;	// Notify the user that the credentials they input are invalid.
+				});
 	}
 
 	/*
@@ -326,7 +326,7 @@ export class RootComponent implements OnInit {
 		else if (valueChart.getCreator() === this.currentUserService.getUsername()) {
 			this.userNotificationService.displayErrors(["You cannot join a chart that you own."]);
 			return false;
-		}	
+		}
 		else if (this.validationService.validateStructure(valueChart).length > 0) {
 			this.userNotificationService.displayErrors(["Cannot join chart. There are problems with this chart that can only be fixed by the owner."]);
 			return false;
@@ -344,19 +344,19 @@ export class RootComponent implements OnInit {
 	viewValueChart(chartName: string, chartPassword: string): void {
 		this.valueChartHttp.getValueChartByName(Formatter.nameToID(chartName), chartPassword)
 			.subscribe(
-			(valueChart: ValueChart) => {
+				(valueChart: ValueChart) => {
 
-				$('#chart-credentials-modal').modal('hide');
-				if (this.validateChartForViewing(valueChart)) {
-					this.valueChartService.setValueChart(valueChart);
-					this.router.navigate(['ValueCharts', valueChart.getFName(), valueChart.getType()], { queryParams: { password: valueChart.password, role: UserRole.Viewer } });
-				}
-			},
-			// Handle Server Errors (like not finding the ValueChart)
-			(error) => {
-				if (error === '404 - Not Found')
-					this.invalidCredentials = true;	// Notify the user that the credentials they input are invalid.
-			});
+					$('#chart-credentials-modal').modal('hide');
+					if (this.validateChartForViewing(valueChart)) {
+						this.valueChartService.setValueChart(valueChart);
+						this.router.navigate(['ValueCharts', valueChart.getFName(), valueChart.getType()], { queryParams: { password: valueChart.password, role: UserRole.Viewer } });
+					}
+				},
+				// Handle Server Errors (like not finding the ValueChart)
+				(error) => {
+					if (error === '404 - Not Found')
+						this.invalidCredentials = true;	// Notify the user that the credentials they input are invalid.
+				});
 	}
 
 	/*
@@ -365,7 +365,7 @@ export class RootComponent implements OnInit {
 						Returns true iff there were no validation errors.
 	*/
 	validateChartForViewing(valueChart: ValueChart): boolean {
-		let structuralErrors = this.validationService.validateStructure(valueChart); 	
+		let structuralErrors = this.validationService.validateStructure(valueChart);
 		if (structuralErrors.length > 0) {
 			if (valueChart.getCreator() !== this.currentUserService.getUsername()) {
 				this.userNotificationService.displayErrors(["Cannot join chart. There are problems with this chart that can only be fixed by its creator."]);
@@ -381,25 +381,22 @@ export class RootComponent implements OnInit {
 }
 
 export const ws: WebSocket = new WebSocket("ws://localhost:8888/websocket");
-ws.onopen = function() {
-	// ws.send("opened connection from here");
-	// console.log("opened but did not send")
+ws.onopen = function () {
 }
 ws.onmessage = function (evt) {
 	console.log("received some message");
 	var obj = JSON.parse(evt.data);
 	console.log(obj);
 	if (obj.remove) {
-// handle removal
+		// handle removal
 	} else if (obj.deliver) {
-// handle delivery
-console.log("handling delivery");
+		// handle delivery
+		console.log("handling delivery");
 		handleDelivery(obj);
 	}
-	// alert(evt.data);
 }
 
 function handleDelivery(obj: Object): void {
-console.log("Received a deliver call");
-alert(JSON.stringify(obj));
+	console.log("Received a deliver call");
+	alert(JSON.stringify(obj));
 }

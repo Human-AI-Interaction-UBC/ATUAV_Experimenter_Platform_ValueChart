@@ -119,7 +119,6 @@ class MMDWebSocket(ApplicationWebSocket):
             self.stop_detection_components()
             self.tobii_controller.stopTracking()
             self.tobii_controller.destroy()
-            
             self.app_state_control.resetApplication(user_id = self.application.cur_user)
             return
 

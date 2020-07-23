@@ -49,7 +49,6 @@ class FixationDetector(DetectionComponent):
         newY = []
         newTime = []
         newValid = []
-        print(str(self.runOnlineFix))
         while(self.runOnlineFix):
             yield self.wait_for_new_data(array_index, array_iterator)
             if (not self.runOnlineFix):
