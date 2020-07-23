@@ -352,9 +352,25 @@ let RootComponent = /** @class */ (() => {
 exports.RootComponent = RootComponent;
 exports.ws = new WebSocket("ws://localhost:8888/websocket");
 exports.ws.onopen = function () {
-    exports.ws.send("opened connection");
+    // ws.send("opened connection from here");
+    // console.log("opened but did not send")
 };
 exports.ws.onmessage = function (evt) {
-    alert(evt.data);
+    console.log("received some message");
+    var obj = JSON.parse(evt.data);
+    console.log(obj);
+    if (obj.remove) {
+        // handle removal
+    }
+    else if (obj.deliver) {
+        // handle delivery
+        console.log("handling delivery");
+        handleDelivery(obj);
+    }
+    // alert(evt.data);
 };
+function handleDelivery(obj) {
+    console.log("Received a deliver call");
+    alert(JSON.stringify(obj));
+}
 //# sourceMappingURL=Root.component.js.map

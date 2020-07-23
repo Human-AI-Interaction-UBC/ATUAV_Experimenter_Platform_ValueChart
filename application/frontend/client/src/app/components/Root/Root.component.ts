@@ -388,10 +388,12 @@ ws.onopen = function() {
 ws.onmessage = function (evt) {
 	console.log("received some message");
 	var obj = JSON.parse(evt.data);
-	if (obj.remove !== null) {
+	console.log(obj);
+	if (obj.remove) {
 // handle removal
-	} else if (obj.deliver !== null) {
+	} else if (obj.deliver) {
 // handle delivery
+console.log("handling delivery");
 		handleDelivery(obj);
 	}
 	// alert(evt.data);
@@ -399,4 +401,5 @@ ws.onmessage = function (evt) {
 
 function handleDelivery(obj: Object): void {
 console.log("Received a deliver call");
+alert(JSON.stringify(obj));
 }
