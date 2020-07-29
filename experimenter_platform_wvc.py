@@ -454,7 +454,7 @@ class UsernameValueChartHandler(tornado.web.RequestHandler):
                 try:
                     userIndex = document["users"].index(username)
                 except Exception as e:
-                    break
+                    print("exception occorred ::", e)
                 else:
                     document["users"].pop(userIndex) # not sure what index to use for pop, or if there is better way to rm elem
                     try:
@@ -501,31 +501,116 @@ class LogoutUserHandler(tornado.web.RequestHandler):
 
 class ExistingUserHandler(tornado.web.RequestHandler):
     def get(self):
-        valueChartsCollection = self.application.mongo_db.ValueCharts
-        users_list = self.loadUsersList()
-        self.render('resume.html', users = users_list)
+        uri = self.request.uri.split('/')
+        # get identifier (either id or name) and password from uri
+        usersCollection = self.application.mongo_db.Users        
+        username = uri[0][1:]
+        try:
+            document = usersCollection.find_one({'username': username})
+        except Exception as e:
+            print("exception occurred ::", e)
+            raise tornado.web.HTTPError(400)
+        else:
+            self.write(json.dumps(document))
+            self.render('/Users/' + username)
 
     def put(self):
-        valueChartsCollection = self.application.mongo_db.ValueCharts
-        userOptions = self.get_argument('userOptions')
-        self.application.cur_user = userOptions
-        query_results = self.application.conn.execute('select * from study_progress where user_id=' + str(userOptions))
-        user_data = query_results.fetchall()
+        uri = self.request.uri.split('/')
+        # get identifier (either id or name) and password from uri
+        usersCollection = self.application.mongo_db.Users        
+        username = uri[0][1:]
+        json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
+
+        try:
+            document = usersCollection.replace_one({'username': username}, self.request.body)
+        except Exception as e:
+            print("exception occurred ::", e)
+            raise tornado.web.HTTPError(400)
+        else:
+            json_obj["_id"] = document["_id"]
+            self.write(json.dumps(json_obj))
+            self.render('/Users/' + username)
     
 
     def delete(self):
-        valueChartsCollection = self.application.mongo_db.ValueCharts
-        #stub
+        uri = self.request.uri.split('/')
+        usersCollection = self.application.mongo_db.Users
+        username = self.request.uri[0][1:]
+        try:
+             usersCollection.find_one_and_delete({'username': username})
+        except Exception as e:
+            print("exception occurred ::", e)
+            raise tornado.web.HTTPError(400)
+        else:
+            self.write('deleted')
 
 
 class OwnedChartsUserHandler(tornado.web.RequestHandler):
     def get(self):
+        uri = self.request.uri.split('/')
+        username = self.request.uri[0][1:]
         valueChartsCollection = self.application.mongo_db.ValueCharts
+        statusCollection = self.application.mongo_db.ValueChartStatuses
+
+        try:
+            documents = valueChartsCollection.find({"creator": username})
+        except Exception as e:
+            print("exception occurred ::", e)
+            raise tornado.web.HTTPError(400)
+        else:
+            summaries = []
+            for doc in documents:
+                try:
+                    status = statusCollection.find_one("chartId": doc["_id"])
+                except Exception as e:
+                    print("exception occurred ::", e)
+                    raise tornado.web.HTTPError(400)
+                else:
+                    summaries.append(
+                        {"_id": doc["_id"], "name": doc["name"], "description": doc["description"], "numUsers": doc["users"].length,"numAlternatives": doc["alternatives"].length,
+                        "password": doc["password"], "lockedBySystem": status["lockedBySystem"], "lockedByCreator": status["lockedByCreator"]})
+            
+            def get_name(summary):
+                return summaries.get("name")
+            
+            summaries.sort(key=get_name)
+            
+            self.write(json.dumps(summaries))
+            self.render('/Users/' + username + '/OwnedValueCharts')
 
 
 class JoinedChartsUserHandler(tornado.web.RequestHandler):
     def get(self):
+        uri = self.request.uri.split('/')
+        username = self.request.uri[0][1:]
         valueChartsCollection = self.application.mongo_db.ValueCharts
+        statusCollection = self.application.mongo_db.ValueChartStatuses
+
+        try:
+            documents = valueChartsCollection.find({"users.username": username})
+        except Exception as e:
+            print("exception occurred ::", e)
+            raise tornado.web.HTTPError(400)
+        else:
+            summaries = []
+            for doc in documents:
+                try:
+                    status = statusCollection.find_one("chartId": doc["_id"])
+                except Exception as e:
+                    print("exception occurred ::", e)
+                    raise tornado.web.HTTPError(400)
+                else:
+                    summaries.append(
+                        {"_id": doc["_id"], "name": doc["name"], "description": doc["description"], "numUsers": doc["users"].length,"numAlternatives": doc["alternatives"].length,
+                        "password": doc["password"], "lockedBySystem": status["lockedBySystem"], "lockedByCreator": status["lockedByCreator"]})
+            
+            def get_name(summary):
+                return summaries.get("name")
+            
+            summaries.sort(key=get_name)
+            
+            self.write(json.dumps(summaries))
+            self.render('/Users/' + username + '/JoinedValueCharts')
 
 
 #main function is first thing to run when application starts
