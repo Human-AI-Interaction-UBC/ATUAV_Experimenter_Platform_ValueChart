@@ -62,20 +62,20 @@ class Application(tornado.web.Application):
         handlers = [
             (r"/", MainHandler),
             (r"/register", RegisterHandler),
-            (r"/Valueharts/", ValueChartHandler),
-            (r"/Valueharts/:chart", ExistingValueChartHandler),
-            (r"/Valueharts/:chart/id", IdValueChartHandler),
-            (r"/Valueharts/:chart/structure", StructureValueChartHandler),
-            (r"/Valueharts/:chart/status", StatusValueChartHandler),
-            (r"/Valueharts/:chart/users/", UsersValueChartHandler),
-            (r"/Valueharts/:chart/users/:username", UsernameValueChartHandler),
+            (r"/ValueCharts/", ValueChartHandler),
+            (r"/ValueCharts/(.*)", ExistingValueChartHandler),
+            (r"/ValueCharts/(.*)/id", IdValueChartHandler),
+            (r"/ValueCharts/(.*)/structure", StructureValueChartHandler),
+            (r"/ValueCharts/(.*)/status", StatusValueChartHandler),
+            (r"/ValueCharts/(.*)/users/", UsersValueChartHandler),
+            (r"/ValueCharts/(.*)/users/(.*)", UsernameValueChartHandler),
             (r"/Users/", UserHandler),
             (r"/Users/currentUser", CurrentUserHandler),
             (r"/Users/login", LoginUserHandler),
             (r"/Users/logout", LogoutUserHandler),
-            (r"/Users/:user", ExistingUserHandler),
-            (r"/Users/:user/OwnedValueCharts", OwnedChartsUserHandler),
-            (r"/Users/:user/JoinedValueCharts", JoinedChartsUserHandler),
+            (r"/Users/(.*)", ExistingUserHandler),
+            (r"/Users/(.*)/OwnedValueCharts", OwnedChartsUserHandler),
+            (r"/Users/(.*)/JoinedValueCharts", JoinedChartsUserHandler),
             (r"/websocket", MMDWebSocket, dict(websocket_dict = websocket_dict))
         ]
         #connects to database
@@ -165,13 +165,12 @@ class ValueChartHandler(tornado.web.RequestHandler):
             raise tornado.web.HTTPError(400)            
 
 class ExistingValueChartHandler(tornado.web.RequestHandler):
-    def get(self):
+    def get(self, chart):
         valueChartsCollection = self.application.mongo_db.ValueCharts
-        chart = self.get_argument('chart')
         print ('selected chart',chart)
         uri = self.request.uri.split('?')
         # get identifier (either id or name) and password from uri
-        identifier = uri[0][1:]
+        identifier = chart
         password = uri[1].split('=')[1]
 
         if bson.objectid.ObjectId.is_valid(identifier):
@@ -192,14 +191,13 @@ class ExistingValueChartHandler(tornado.web.RequestHandler):
                 raise tornado.web.HTTPError(400)
             else:
                 self.write(json.dumps(valueChartById))
-                self.render('/ValueCharts/' + identifier)
+                # self.render('/ValueCharts/' + identifier)
 
-    def put(self):
+    def put(self, chart):
         # endpoint does not exist in frontend?
         # supposed to update an existing ValueChart or create one if it does not exist
-        chart = self.get_argument('chart')
         valueChartsCollection = self.application.mongo_db.ValueCharts
-        identifier = ''
+        identifier = chart
         json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
 
         if valueChartsCollection.find_one({'_id': identifier}):
@@ -223,9 +221,9 @@ class ExistingValueChartHandler(tornado.web.RequestHandler):
                 self.render('/ValueCharts/' + inserted.inserted_id)
 
 
-    def delete(self):
+    def delete(self, chart):
         valueChartsCollection = self.application.mongo_db.ValueCharts
-        identifier = self.request.uri[1:]
+        identifier = chart
         try:
              valueChartsCollection.find_one_and_delete({'_id': identifier})
         except Exception as e:
@@ -237,11 +235,11 @@ class ExistingValueChartHandler(tornado.web.RequestHandler):
 
 
 class IdValueChartHandler(tornado.web.RequestHandler):
-    def get(self):
+    def get(self, chart):
         uri = self.request.uri.split('/')
         # get identifier (either id or name) and password from uri
         valueChartsCollection = self.application.mongo_db.ValueCharts        
-        identifier = uri[0][1:]
+        identifier = chart
         if valueChartsCollection.find_one({'fname': identifier}):
             self.write(json.dumps(identifier))
             self.render('/ValueCharts/' + identifier)
@@ -250,10 +248,10 @@ class IdValueChartHandler(tornado.web.RequestHandler):
 
 
 class StructureValueChartHandler(tornado.web.RequestHandler):
-    def get(self):
+    def get(self, chart):
         uri = self.request.uri.split('?')
         # get identifier (either id or name) and password from uri
-        identifier = uri[0][1:]
+        identifier = chart
         password = uri[1].split('=')[1]
         valueChartsCollection = self.application.mongo_db.ValueCharts        
         try:
@@ -266,9 +264,9 @@ class StructureValueChartHandler(tornado.web.RequestHandler):
             self.render('/ValueCharts/' + identifier + '/structure')
 
 
-    def put(self):
+    def put(self, chart):
         valueChartsCollection = self.application.mongo_db.ValueCharts
-        identifier = ''
+        identifier = chart
         json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
 
         if valueChartsCollection.find_one({'fname': identifier}):
@@ -288,11 +286,11 @@ class StructureValueChartHandler(tornado.web.RequestHandler):
 
 
 class StatusValueChartHandler(tornado.web.RequestHandler):
-    def get(self):
+    def get(self, chart):
         uri = self.request.uri.split('/')
         # get identifier (either id or name) and password from uri
         valueChartsCollection = self.application.mongo_db.ValueCharts        
-        identifier = uri[0][1:]
+        identifier = chart
         try:
             document = valueChartsCollection.find_one({'chartId': identifier})
         except Exception as e:
@@ -303,9 +301,9 @@ class StatusValueChartHandler(tornado.web.RequestHandler):
             self.render('/ValueCharts/' + identifier + '/status')
         
 
-    def put(self):
+    def put(self, chart):
         valueChartsCollection = self.application.mongo_db.ValueCharts
-        identifier = ''
+        identifier = chart
         json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
 
         try:
@@ -334,9 +332,9 @@ class StatusValueChartHandler(tornado.web.RequestHandler):
                     self.render('/ValueCharts/' + inserted.inserted_id)
 
     
-    def delete(self):
+    def delete(self, chart):
         valueChartsCollection = self.application.mongo_db.ValueCharts
-        identifier = self.request.uri[1:]
+        identifier = chart
         try:
              valueChartsCollection.find_one_and_delete({'chartId': identifier})
         except Exception as e:
@@ -347,9 +345,9 @@ class StatusValueChartHandler(tornado.web.RequestHandler):
 
 
 class UsersValueChartHandler(tornado.web.RequestHandler):
-    def post(self):
+    def post(self, chart):
         valueChartsCollection = self.application.mongo_db.ValueCharts
-        identifier = ''
+        identifier = chart
         json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
 
         try:
@@ -372,9 +370,9 @@ class UsersValueChartHandler(tornado.web.RequestHandler):
                 raise tornado.web.HTTPError(404)
 
     
-    def put(self):
+    def put(self, chart):
         valueChartsCollection = self.application.mongo_db.ValueCharts
-        identifier = ''
+        identifier = chart
         json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
 
         try:
@@ -399,12 +397,12 @@ class UsersValueChartHandler(tornado.web.RequestHandler):
 
 
 class UsernameValueChartHandler(tornado.web.RequestHandler):
-    def put(self):
+    def put(self, chart, id):
         valueChartsCollection = self.application.mongo_db.ValueCharts
         uri = self.request.uri.split('/')
         # get identifier (either id or name) and password from uri
-        identifier = uri[0][1:]
-        username = uri[-1][1:]
+        identifier = chart
+        username = id
         json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
 
         try:
@@ -436,7 +434,7 @@ class UsernameValueChartHandler(tornado.web.RequestHandler):
                 raise tornado.web.HTTPError(404)
 
 
-    def delete(self):
+    def delete(self, chart, id):
         valueChartsCollection = self.application.mongo_db.ValueCharts
         uri = self.request.uri.split('/')
         # get identifier (either id or name) and password from uri
@@ -488,7 +486,7 @@ class CurrentUserHandler(tornado.web.RequestHandler):
 class LoginUserHandler(tornado.web.RequestHandler):
     def post(self):
         json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
-        self.write(json.dumps({"username": json_obj["users"][0].username, "password":json_obj["users"][0].password, "loginResult": True}))
+        self.write(json.dumps({"username": json_obj["username"], "password":json_obj["password"], "loginResult": True}))
 
 
 class LogoutUserHandler(tornado.web.RequestHandler):
@@ -500,11 +498,11 @@ class LogoutUserHandler(tornado.web.RequestHandler):
 
 
 class ExistingUserHandler(tornado.web.RequestHandler):
-    def get(self):
+    def get(self, user):
         uri = self.request.uri.split('/')
         # get identifier (either id or name) and password from uri
         usersCollection = self.application.mongo_db.Users        
-        username = uri[0][1:]
+        username = user
         try:
             document = usersCollection.find_one({'username': username})
         except Exception as e:
@@ -512,13 +510,13 @@ class ExistingUserHandler(tornado.web.RequestHandler):
             raise tornado.web.HTTPError(400)
         else:
             self.write(json.dumps(document))
-            self.render('/Users/' + username)
+            # self.render('/Users/' + username)
 
-    def put(self):
+    def put(self, user):
         uri = self.request.uri.split('/')
         # get identifier (either id or name) and password from uri
         usersCollection = self.application.mongo_db.Users        
-        username = uri[0][1:]
+        username = user
         json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
 
         try:
@@ -546,9 +544,9 @@ class ExistingUserHandler(tornado.web.RequestHandler):
 
 
 class OwnedChartsUserHandler(tornado.web.RequestHandler):
-    def get(self):
-        uri = self.request.uri.split('/')
-        username = self.request.uri[0][1:]
+    def get(self, user):
+        print("got to owned charts handler")
+        username = user
         valueChartsCollection = self.application.mongo_db.ValueCharts
         statusCollection = self.application.mongo_db.ValueChartStatuses
 
@@ -561,7 +559,7 @@ class OwnedChartsUserHandler(tornado.web.RequestHandler):
             summaries = []
             for doc in documents:
                 try:
-                    status = statusCollection.find_one("chartId": doc["_id"])
+                    status = statusCollection.find_one({"chartId": doc["_id"]})
                 except Exception as e:
                     print("exception occurred ::", e)
                     raise tornado.web.HTTPError(400)
@@ -576,13 +574,12 @@ class OwnedChartsUserHandler(tornado.web.RequestHandler):
             summaries.sort(key=get_name)
             
             self.write(json.dumps(summaries))
-            self.render('/Users/' + username + '/OwnedValueCharts')
+            # self.render('/Users/' + username + '/OwnedValueCharts', username=username)
 
 
 class JoinedChartsUserHandler(tornado.web.RequestHandler):
-    def get(self):
-        uri = self.request.uri.split('/')
-        username = self.request.uri[0][1:]
+    def get(self, user):
+        username = user
         valueChartsCollection = self.application.mongo_db.ValueCharts
         statusCollection = self.application.mongo_db.ValueChartStatuses
 
@@ -595,7 +592,7 @@ class JoinedChartsUserHandler(tornado.web.RequestHandler):
             summaries = []
             for doc in documents:
                 try:
-                    status = statusCollection.find_one("chartId": doc["_id"])
+                    status = statusCollection.find_one({"chartId": doc["_id"]})
                 except Exception as e:
                     print("exception occurred ::", e)
                     raise tornado.web.HTTPError(400)
@@ -610,7 +607,7 @@ class JoinedChartsUserHandler(tornado.web.RequestHandler):
             summaries.sort(key=get_name)
             
             self.write(json.dumps(summaries))
-            self.render('/Users/' + username + '/JoinedValueCharts')
+            # self.render('/Users/' + username + '/JoinedValueCharts', username=username)
 
 
 #main function is first thing to run when application starts

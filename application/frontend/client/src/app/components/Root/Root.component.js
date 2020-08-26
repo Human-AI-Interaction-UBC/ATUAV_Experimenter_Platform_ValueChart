@@ -352,8 +352,6 @@ let RootComponent = /** @class */ (() => {
 exports.RootComponent = RootComponent;
 exports.ws = new WebSocket("ws://localhost:8888/websocket");
 exports.ws.onopen = function () {
-    // ws.send("opened connection from here");
-    // console.log("opened but did not send")
 };
 exports.ws.onmessage = function (evt) {
     console.log("received some message");
@@ -367,7 +365,6 @@ exports.ws.onmessage = function (evt) {
         console.log("handling delivery");
         handleDelivery(obj);
     }
-    // alert(evt.data);
 };
 function handleDelivery(obj) {
     console.log("Received a deliver call");
