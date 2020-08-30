@@ -249,7 +249,7 @@ class AdaptationLoop():
             for an_intervention in to_set_active:
                 rules_to_set_active.add(an_intervention[1])
                 self.app_state_controller.setInterventionActive(an_intervention[0], an_intervention[1], an_intervention[2])
-                #print("triggered: " + rule_name + " deliverying: " + intervention_name)
+                # print("triggered: " + rule_name + " deliverying: " + intervention_name)
 
 
             for rule in rules_to_set_active:
