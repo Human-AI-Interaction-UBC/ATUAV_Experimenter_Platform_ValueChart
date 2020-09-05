@@ -475,9 +475,7 @@ class LoginUserHandler(tornado.web.RequestHandler):
 
 class LogoutUserHandler(tornado.web.RequestHandler):
     def get(self):
-        json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
-
-        self.write(json.dumps({"username": json_obj["users"][0].username, "password":json_obj["users"][0].password}))
+        self.write(json.dumps({"loginResult": False}))
         self.flush()
         #destroy current user session
 
@@ -545,7 +543,7 @@ class OwnedChartsUserHandler(tornado.web.RequestHandler):
                         "password": doc["password"], "lockedBySystem": status["lockedBySystem"], "lockedByCreator": status["lockedByCreator"]})
             
             def get_name(summary):
-                return summaries.get("name")
+                return summary["name"]
             
             summaries.sort(key=get_name)
             
@@ -577,7 +575,7 @@ class JoinedChartsUserHandler(tornado.web.RequestHandler):
                         "password": doc["password"], "lockedBySystem": status["lockedBySystem"], "lockedByCreator": status["lockedByCreator"]})
             
             def get_name(summary):
-                return summaries.get("name")
+                return summary["name"]
             
             summaries.sort(key=get_name)
             
