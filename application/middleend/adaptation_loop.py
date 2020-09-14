@@ -317,7 +317,7 @@ class AdaptationLoop():
         if event_name not in self.app_state_controller.eventNames:
             raise ValueError("Event name received is not one of the user states active for this task")
         task = self.app_state_controller.currTask
-        print("EVALUATING: " + event_name)
+        # print("EVALUATING: " + event_name)
 
         #remove all interventions that have this event as a removal_triggger
         #self.__removeExpiredInterventions__(event_name, task)

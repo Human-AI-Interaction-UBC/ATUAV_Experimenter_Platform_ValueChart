@@ -63,19 +63,19 @@ class Application(tornado.web.Application):
             (r"/", MainHandler),
             (r"/register", RegisterHandler),
             (r"/ValueCharts/", ValueChartHandler),
-            (r"/ValueCharts/(.*)", ExistingValueChartHandler),
             (r"/ValueCharts/(.*)/id", IdValueChartHandler),
             (r"/ValueCharts/(.*)/structure", StructureValueChartHandler),
             (r"/ValueCharts/(.*)/status", StatusValueChartHandler),
             (r"/ValueCharts/(.*)/users/", UsersValueChartHandler),
             (r"/ValueCharts/(.*)/users/(.*)", UsernameValueChartHandler),
+            (r"/ValueCharts/(.*)", ExistingValueChartHandler),
             (r"/Users/", UserHandler),
             (r"/Users/currentUser", CurrentUserHandler),
             (r"/Users/login", LoginUserHandler),
             (r"/Users/logout", LogoutUserHandler),
-            (r"/Users/(.*)", ExistingUserHandler),
             (r"/Users/(.*)/OwnedValueCharts", OwnedChartsUserHandler),
             (r"/Users/(.*)/JoinedValueCharts", JoinedChartsUserHandler),
+            (r"/Users/(.*)", ExistingUserHandler),
             (r"/websocket", MMDWebSocket, dict(websocket_dict = websocket_dict))
         ]
         #connects to database
@@ -147,30 +147,27 @@ class ValueChartHandler(tornado.web.RequestHandler):
     def post(self):
         # get the valueCharts collection
         valueChartsCollection = self.application.mongo_db.ValueCharts
-        fname = self.get_argument('fname')
+        json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
+        fname = json_obj['fname']
         print ('fname: ' + fname)
 
         if valueChartsCollection.find_one({'fname': fname}):
-            json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
-
+            raise tornado.web.HTTPError(400) 
+        else:
             try:
-                inserted = valueChartsCollection.insert_one(self.request.body)
+                inserted = valueChartsCollection.insert_one(json_obj)
             except Exception as e:
                 print("exception occurred ::", e)
                 raise tornado.web.HTTPError(400)
             else:
-                self.write(json.dumps(inserted))
-                self.render('/ValueCharts/' + inserted.inserted_id)
-        else:
-            raise tornado.web.HTTPError(400)            
+                self.write(self.request.body)
+                self.flush()
+
 
 class ExistingValueChartHandler(tornado.web.RequestHandler):
     def get(self, identifier):
         valueChartsCollection = self.application.mongo_db.ValueCharts
-        print ('selected chart',identifier)
-        uri = self.request.uri.split('?')
-        # get identifier (either id or name) and password from uri
-        password = uri[1].split('=')[1]
+        password = self.get_query_argument("password", None)
 
         if bson.objectid.ObjectId.is_valid(identifier):
             try:
@@ -280,7 +277,7 @@ class StructureValueChartHandler(tornado.web.RequestHandler):
 
 class StatusValueChartHandler(tornado.web.RequestHandler):
     def get(self, identifier):
-        valueChartsCollection = self.application.mongo_db.ValueCharts        
+        valueChartsCollection = self.application.mongo_db.ValueChartStatuses        
         try:
             document = valueChartsCollection.find_one({'chartId': identifier})
         except Exception as e:
@@ -292,7 +289,7 @@ class StatusValueChartHandler(tornado.web.RequestHandler):
         
 
     def put(self, identifier):
-        valueChartsCollection = self.application.mongo_db.ValueCharts
+        valueChartsCollection = self.application.mongo_db.ValueChartStatuses
         json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
 
         try:
@@ -322,7 +319,7 @@ class StatusValueChartHandler(tornado.web.RequestHandler):
 
     
     def delete(self, identifier):
-        valueChartsCollection = self.application.mongo_db.ValueCharts
+        valueChartsCollection = self.application.mongo_db.ValueChartStatuses
         try:
              valueChartsCollection.find_one_and_delete({'chartId': identifier})
         except Exception as e:
@@ -538,9 +535,13 @@ class OwnedChartsUserHandler(tornado.web.RequestHandler):
                     print("exception occurred ::", e)
                     raise tornado.web.HTTPError(400)
                 else:
-                    summaries.append(
-                        {"_id": doc["_id"], "name": doc["name"], "description": doc["description"], "numUsers": doc["users"].length,"numAlternatives": doc["alternatives"].length,
-                        "password": doc["password"], "lockedBySystem": status["lockedBySystem"], "lockedByCreator": status["lockedByCreator"]})
+                    if (status is not None):
+                        summaries.append(
+                            {"_id": doc["_id"], "name": doc["name"], "description": doc["description"], "numUsers": len(doc["users"]),"numAlternatives": len(doc["alternatives"]),
+                            "password": doc["password"], "lockedBySystem": status["lockedBySystem"], "lockedByCreator": status["lockedByCreator"]})
+                    else:
+                        print("exception occurred ::")
+                        raise tornado.web.HTTPError(400)
             
             def get_name(summary):
                 return summary["name"]
@@ -570,9 +571,13 @@ class JoinedChartsUserHandler(tornado.web.RequestHandler):
                     print("exception occurred ::", e)
                     raise tornado.web.HTTPError(400)
                 else:
-                    summaries.append(
-                        {"_id": doc["_id"], "name": doc["name"], "description": doc["description"], "numUsers": doc["users"].length,"numAlternatives": doc["alternatives"].length,
-                        "password": doc["password"], "lockedBySystem": status["lockedBySystem"], "lockedByCreator": status["lockedByCreator"]})
+                    if (status is not None):
+                        summaries.append(
+                            {"_id": doc["_id"], "name": doc["name"], "description": doc["description"], "numUsers": len(doc["users"]),"numAlternatives": len(doc["alternatives"]),
+                            "password": doc["password"], "lockedBySystem": status["lockedBySystem"], "lockedByCreator": status["lockedByCreator"]})
+                    else:
+                        print("exception occurred ::")
+                        raise tornado.web.HTTPError(400)
             
             def get_name(summary):
                 return summary["name"]
