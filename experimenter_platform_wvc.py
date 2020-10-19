@@ -309,7 +309,7 @@ class StatusValueChartHandler(tornado.web.RequestHandler):
                     self.flush()
             else:
                 try:
-                    inserted = valueChartsCollection.insert_one(self.request.body)
+                    inserted = valueChartsCollection.insert_one(json_obj)
                 except Exception as e:
                     print("exception occurred ::", e)
                     raise tornado.web.HTTPError(400)
