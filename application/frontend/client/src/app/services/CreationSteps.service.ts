@@ -293,7 +293,7 @@ export class CreationStepsService {
 	saveValueChartToDatabase(createStatusDocument: boolean): void {
 		this.valueChartHttp.createValueChart(this.valueChartService.getValueChart())
 			.subscribe(
-			(valueChart: ValueChart) => {
+			(valueChart: any) => {
 				// Set the id of the ValueChart.
 				this.valueChartService.getValueChart()._id = valueChart._id;
 				this.userNotificationService.displaySuccesses(['ValueChart auto-saved']);
@@ -305,11 +305,13 @@ export class CreationStepsService {
 					status.chartId = this.valueChartService.getValueChart()._id;
 					this.valueChartHttp.setValueChartStatus(status).subscribe( (newStatus) => { status = newStatus; });
 				}	
-			},
-			// Handle Server Errors
-			(error) => {
-				this.userNotificationService.displayWarnings(['Auto-saving failed']);
-			});
+			}
+			// ,
+			// // Handle Server Errors
+			// (error) => {
+			// 	this.userNotificationService.displayWarnings(['Auto-saving failed']);
+			// }
+			);
 	}
 
 	/* 	

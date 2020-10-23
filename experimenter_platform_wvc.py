@@ -444,23 +444,33 @@ class UsernameValueChartHandler(tornado.web.RequestHandler):
 
 class UserHandler(tornado.web.RequestHandler):
     def post(self):
+        usersCollection = self.application.mongo_db.Users        
         json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
 
-        self.write(json.dumps({"username": json_obj["users"][0].username, "password":json_obj["users"][0].password}))
-        self.flush()
+        if usersCollection.find_one({'username': json_obj["username"]}):
+            raise tornado.web.HTTPError(400) 
+        else:
+            try:
+                inserted = usersCollection.insert_one(json_obj)
+            except Exception as e:
+                print("exception occurred ::", e)
+                raise tornado.web.HTTPError(400)
+            else:
+                self.write(self.request.body)
+                self.flush()
         # figure out how to do authentication
 
 
 class CurrentUserHandler(tornado.web.RequestHandler):
     def get(self):
+        usersCollection = self.application.mongo_db.Users        
         json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
-        is_authenticated = True
-        if is_authenticated:
-            self.write(json.dumps({"username": json_obj["users"][0].username, "password":json_obj["users"][0].password, "loginResult": is_authenticated}))
+
+        if usersCollection.find_one({'username': json_obj["username"]}):
+            self.write(self.request.body)
             self.flush()
         else:
-            self.write({"loginResult": is_authenticated})
-            self.flush()
+            raise tornado.web.HTTPError(400)    
 
 
 class LoginUserHandler(tornado.web.RequestHandler):
@@ -558,7 +568,7 @@ class JoinedChartsUserHandler(tornado.web.RequestHandler):
         statusCollection = self.application.mongo_db.ValueChartStatuses
 
         try:
-            documents = valueChartsCollection.find({"users.username": username})
+            documents = valueChartsCollection.find({"creator": username})
         except Exception as e:
             print("exception occurred ::", e)
             raise tornado.web.HTTPError(400)
@@ -566,7 +576,9 @@ class JoinedChartsUserHandler(tornado.web.RequestHandler):
             summaries = []
             for doc in documents:
                 try:
-                    status = statusCollection.find_one({"chartId": doc["_id"]})
+                    print(doc)
+                    status = statusCollection.find_one({"_id": doc["_id"]})
+                    
                 except Exception as e:
                     print("exception occurred ::", e)
                     raise tornado.web.HTTPError(400)
