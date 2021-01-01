@@ -576,14 +576,16 @@ class OwnedChartsUserHandler(tornado.web.RequestHandler):
             summaries = []
             for doc in documents:
                 try:
-                    status = statusCollection.find_one({"chartId": doc["_id"]})
+                    stringId = str(doc['_id'])
+                    status = statusCollection.find_one({"chartId": stringId})
+                    print(status)
                 except Exception as e:
                     print("exception occurred ::", e)
                     raise tornado.web.HTTPError(400)
                 else:
                     if (status is not None):
                         summaries.append(
-                            {"_id": doc["_id"], "name": doc["name"], "description": doc["description"], "numUsers": len(doc["users"]),"numAlternatives": len(doc["alternatives"]),
+                            {"_id": stringId, "name": doc["name"], "description": doc["description"], "numUsers": len(doc["users"]),"numAlternatives": len(doc["alternatives"]),
                             "password": doc["password"], "lockedBySystem": status["lockedBySystem"], "lockedByCreator": status["lockedByCreator"]})
                     else:
                         print("exception occurred ::")
@@ -594,7 +596,9 @@ class OwnedChartsUserHandler(tornado.web.RequestHandler):
             
             summaries.sort(key=get_name)
             
-            self.write(json.dumps(summaries))
+            wrapper_obj = {}
+            wrapper_obj['data'] = summaries
+            self.write(json.dumps(wrapper_obj))
             self.flush()
 
 
@@ -612,8 +616,8 @@ class JoinedChartsUserHandler(tornado.web.RequestHandler):
             summaries = []
             for doc in documents:
                 try:
-                    print(doc)
-                    status = statusCollection.find_one({"_id": doc["_id"]})
+                    stringId = str(doc['_id'])
+                    status = statusCollection.find_one({"chartId": stringId})
                     
                 except Exception as e:
                     print("exception occurred ::", e)
@@ -621,7 +625,7 @@ class JoinedChartsUserHandler(tornado.web.RequestHandler):
                 else:
                     if (status is not None):
                         summaries.append(
-                            {"_id": doc["_id"], "name": doc["name"], "description": doc["description"], "numUsers": len(doc["users"]),"numAlternatives": len(doc["alternatives"]),
+                            {"_id": stringId, "name": doc["name"], "description": doc["description"], "numUsers": len(doc["users"]),"numAlternatives": len(doc["alternatives"]),
                             "password": doc["password"], "lockedBySystem": status["lockedBySystem"], "lockedByCreator": status["lockedByCreator"]})
                     else:
                         print("exception occurred ::")
@@ -632,7 +636,9 @@ class JoinedChartsUserHandler(tornado.web.RequestHandler):
             
             summaries.sort(key=get_name)
             
-            self.write(json.dumps(summaries))
+            wrapper_obj = {}
+            wrapper_obj['data'] = summaries
+            self.write(json.dumps(wrapper_obj))
             self.flush()
 
 
