@@ -172,24 +172,31 @@ class ExistingValueChartHandler(tornado.web.RequestHandler):
         valueChartsCollection = self.application.mongo_db.ValueCharts
         password = self.get_query_argument("password", None)
 
-        if bson.objectid.ObjectId.is_valid(identifier):
+        oid = bson.objectid.ObjectId(identifier)
+        if bson.objectid.ObjectId.is_valid(oid):
             try:
-                valueChartByName = valueChartsCollection.find_one({'_id': identifier, 'password': password})
+                valueChartById = valueChartsCollection.find_one({'_id': oid, 'password': password})
             except Exception as e:
                 print("exception occurred ::", e)
                 raise tornado.web.HTTPError(400)
             else:
-                self.write(json.dumps(valueChartByName))
+                valueChartById['_id'] = identifier
+                wrapper_obj = {}
+                wrapper_obj['data'] = valueChartById
+                self.write(json.dumps(wrapper_obj))
                 self.flush()
 
         else:
             try:
-                valueChartById = valueChartsCollection.find_one({'fname': identifier, 'password': password})
+                valueChartByName = valueChartsCollection.find_one({'fname': identifier, 'password': password})
             except Exception as e:
                 print("exception occurred ::", e)
                 raise tornado.web.HTTPError(400)
             else:
-                self.write(json.dumps(valueChartById))
+                valueChartByName['_id'] = str(valueChartByName['_id'])
+                wrapper_obj = {}
+                wrapper_obj['data'] = valueChartByName
+                self.write(json.dumps(wrapper_obj))
                 self.flush()
 
     def put(self, identifier):
@@ -300,6 +307,10 @@ class StatusValueChartHandler(tornado.web.RequestHandler):
             print("exception occurred ::", e)
             raise tornado.web.HTTPError(400)
         else:
+            document['_id'] = str(document['_id'])
+            wrapper_obj = {}
+            wrapper_obj['data'] = document
+            self.write(json.dumps(wrapper_obj))            
             self.write(json.dumps(document))
             self.flush()
         
@@ -409,6 +420,7 @@ class UsernameValueChartHandler(tornado.web.RequestHandler):
         valueChartsCollection = self.application.mongo_db.ValueCharts
         json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
 
+        oid = bson.objectid.ObjectId(identifier)
         try:
             document = valueChartsCollection.find_one({'_id': oid})
         except Exception as e:
@@ -509,7 +521,7 @@ class LoginUserHandler(tornado.web.RequestHandler):
             login_result = True
         else:
             raise tornado.web.HTTPError(400) 
-        self.write(json.dumps({"username": json_obj["username"], "password":json_obj["password"], "loginResult": login_result}))
+        self.write(json.dumps({"data": {"username": json_obj["username"], "password":json_obj["password"], "loginResult": login_result}}))
         self.flush()
 
 
@@ -578,7 +590,6 @@ class OwnedChartsUserHandler(tornado.web.RequestHandler):
                 try:
                     stringId = str(doc['_id'])
                     status = statusCollection.find_one({"chartId": stringId})
-                    print(status)
                 except Exception as e:
                     print("exception occurred ::", e)
                     raise tornado.web.HTTPError(400)
