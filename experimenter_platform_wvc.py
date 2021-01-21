@@ -76,6 +76,7 @@ class Application(tornado.web.Application):
             (r"/Users/(.*)/OwnedValueCharts", OwnedChartsUserHandler),
             (r"/Users/(.*)/JoinedValueCharts", JoinedChartsUserHandler),
             (r"/Users/(.*)", ExistingUserHandler),
+            (r"/host/(.*)", HostWebSocketHandler),
             (r"/websocket", MMDWebSocket, dict(websocket_dict = websocket_dict))
         ]
         #connects to database
@@ -128,6 +129,23 @@ class MMDWebSocket(ApplicationWebSocket):
 
     def on_close(self):
         self.app_state_control.logTask(user_id = self.application.cur_user)
+
+
+class HostWebSocketHandler(tornado.websocket.WebSocketHandler):
+
+    def open(self, identifier):
+        print('haha')
+        connection_obj = {}
+        connection_obj['data'] = "complete"
+        connection_obj['chartId'] = identifier
+        connection_obj['type'] = 4
+        self.write_message(json.dumps(connection_obj))
+
+    def on_message(self, message):
+        print("received message: " + message)
+
+    def on_close(self):
+        print("close")
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
