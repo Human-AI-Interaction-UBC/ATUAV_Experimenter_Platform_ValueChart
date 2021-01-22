@@ -10,6 +10,8 @@ import sys
 import collections
 from pymongo import MongoClient
 import bson
+from pyee import EventEmitter
+
 
 # Imports required for EYE TRACKING Code:
 import time
@@ -84,6 +86,12 @@ class Application(tornado.web.Application):
         # connects to database for webValueCharts
         self.mongo_client = MongoClient('mongodb://localhost:27017/')
         self.mongo_db = self.mongo_client.value_charts_db
+
+        self.event_emitter = EventEmitter()
+        self.USER_ADDED_EVENT = "userAdded"
+        self.USER_REMOVED_EVENT = "userRemoved"
+        self.USER_CHANGED_EVENT = "userChanged"
+        self.STRUCTURE_CHANGED_EVENT = "structureChanged"
         #"global variable" to save current UserID of session
         UserID = -1
         #global variable to track start and end times
@@ -147,6 +155,45 @@ class HostWebSocketHandler(tornado.websocket.WebSocketHandler):
     def on_close(self):
         print("close")
 
+    def init_event_listeners(self, identifier):
+        def added_listener(user):
+            print("User added event detected")
+            connection_obj = {}
+            connection_obj['data'] = user
+            connection_obj['chartId'] = identifier
+            connection_obj['type'] = 4
+            self.write_message(json.dumps(connection_obj))
+
+        def removed_listener(username):
+            print("User removed event detected")
+            connection_obj = {}
+            connection_obj['data'] = username
+            connection_obj['chartId'] = identifier
+            connection_obj['type'] = 4
+            self.write_message(json.dumps(connection_obj))
+
+        def changed_listener(user):
+            print("User changed event detected")
+            connection_obj = {}
+            connection_obj['data'] = user
+            connection_obj['chartId'] = identifier
+            connection_obj['type'] = 4
+            self.write_message(json.dumps(connection_obj))
+
+        def structure_changed_listener(chart):
+            print("User added event detected")
+            connection_obj = {}
+            connection_obj['data'] = chart
+            connection_obj['chartId'] = identifier
+            connection_obj['type'] = 4
+            self.write_message(json.dumps(connection_obj))
+
+        self.application.event_emitter.on(self.application.USER_ADDED_EVENT + '-' + identifier, added_listener)
+        self.application.event_emitter.on(self.application.USER_REMOVED_EVENT + '-' + identifier, removed_listener)
+        self.application.event_emitter.on(self.application.USER_CHANGED_EVENT + '-' + identifier, changed_listener)
+        self.application.event_emitter.on(self.application.STRUCTURE_CHANGED_EVENT + '-' + identifier, structure_changed_listener)
+
+
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
         self.application.start_time = str(datetime.datetime.now().time())
@@ -190,8 +237,21 @@ class ExistingValueChartHandler(tornado.web.RequestHandler):
         valueChartsCollection = self.application.mongo_db.ValueCharts
         password = self.get_query_argument("password", None)
 
-        oid = bson.objectid.ObjectId(identifier)
-        if bson.objectid.ObjectId.is_valid(oid):
+        try:
+            oid = bson.objectid.ObjectId(identifier)
+        except Exception as e:
+            try:
+                valueChartByName = valueChartsCollection.find_one({'fname': identifier, 'password': password})
+            except Exception as e:
+                print("exception occurred ::", e)
+                raise tornado.web.HTTPError(400)
+            else:
+                # valueChartByName['_id'] = str(valueChartByName['_id'])
+                wrapper_obj = {}
+                wrapper_obj['data'] = valueChartByName
+                self.write(json.dumps(wrapper_obj))
+                self.flush()
+        else:
             try:
                 valueChartById = valueChartsCollection.find_one({'_id': oid, 'password': password})
             except Exception as e:
@@ -203,19 +263,7 @@ class ExistingValueChartHandler(tornado.web.RequestHandler):
                 wrapper_obj['data'] = valueChartById
                 self.write(json.dumps(wrapper_obj))
                 self.flush()
-
-        else:
-            try:
-                valueChartByName = valueChartsCollection.find_one({'fname': identifier, 'password': password})
-            except Exception as e:
-                print("exception occurred ::", e)
-                raise tornado.web.HTTPError(400)
-            else:
-                valueChartByName['_id'] = str(valueChartByName['_id'])
-                wrapper_obj = {}
-                wrapper_obj['data'] = valueChartByName
-                self.write(json.dumps(wrapper_obj))
-                self.flush()
+            
 
     def put(self, identifier):
         # endpoint does not exist in frontend?
@@ -234,6 +282,7 @@ class ExistingValueChartHandler(tornado.web.RequestHandler):
                 raise tornado.web.HTTPError(400)
             else:
                 json_obj['_id'] = identifier
+                self.application.event_emitter.emit(self.application.STRUCTURE_CHANGED_EVENT + '-' + identifier, json_obj)
                 wrapper_obj = {}
                 wrapper_obj['data'] = json_obj
                 self.write(json.dumps(wrapper_obj))
@@ -247,6 +296,7 @@ class ExistingValueChartHandler(tornado.web.RequestHandler):
                 raise tornado.web.HTTPError(400)
             else:
                 json_obj['_id'] = identifier
+                self.application.event_emitter.emit(self.application.STRUCTURE_CHANGED_EVENT + '-' + identifier, json_obj)
                 wrapper_obj = {}
                 wrapper_obj['data'] = json_obj
                 self.write(json.dumps(wrapper_obj))
@@ -306,6 +356,8 @@ class StructureValueChartHandler(tornado.web.RequestHandler):
             else:
                 json_obj['users'] = None
                 json_obj['_id'] = chartId
+
+                self.application.event_emitter.emit(self.application.STRUCTURE_CHANGED_EVENT + '-' + chartId, json_obj)
                 wrapper_obj = {}
                 wrapper_obj['data'] = json_obj
                 self.write(json.dumps(wrapper_obj))
@@ -402,6 +454,7 @@ class UsersValueChartHandler(tornado.web.RequestHandler):
                     print("exception occurred ::", e)
                     raise tornado.web.HTTPError(400)
                 else:
+                    self.application.event_emitter.emit(self.application.USER_ADDED_EVENT + '-' + identifier, json_obj)
                     self.write(json.dumps(json_obj))
                     self.flush()
             else:
@@ -463,6 +516,12 @@ class UsernameValueChartHandler(tornado.web.RequestHandler):
                     raise tornado.web.HTTPError(400)
                 else:
                     json_obj['_id'] = identifier
+            
+                    if userExists:
+                        self.application.event_emitter.emit(self.application.USER_CHANGED_EVENT + '-' + identifier, json_obj)
+                    else:
+                        self.application.event_emitter.emit(self.application.USER_ADDED_EVENT + '-' + identifier, json_obj)
+                    
                     wrapper_obj = {}
                     wrapper_obj['data'] = json_obj
                     self.write(json.dumps(wrapper_obj))
@@ -494,6 +553,8 @@ class UsernameValueChartHandler(tornado.web.RequestHandler):
                     except Exception as e:
                         print("exception occurred ::", e)
                         raise tornado.web.HTTPError(400)
+                    else:
+                        self.application.event_emitter.emit(self.application.USER_REMOVED_EVENT + '-' + identifier, username)
             else:
                 raise tornado.web.HTTPError(404)
 
