@@ -140,6 +140,7 @@ class MMDWebSocket(ApplicationWebSocket):
 
 
 class HostWebSocketHandler(tornado.websocket.WebSocketHandler):
+    keep_connection = True
 
     def open(self, identifier):
         print('haha')
@@ -149,11 +150,24 @@ class HostWebSocketHandler(tornado.websocket.WebSocketHandler):
         connection_obj['type'] = 4
         self.write_message(json.dumps(connection_obj))
 
+        def send_keep_connection():
+            keep_connection_obj = {}
+            keep_connection_obj['data'] = "Keep connection Open"
+            keep_connection_obj['chartId'] = identifier
+            keep_connection_obj['type'] = 5
+            self.write_message(json.dumps(keep_connection_obj))
+        
+        while self.keep_connection:
+            send_keep_connection()
+            time.sleep(5)
+
+
     def on_message(self, message):
         print("received message: " + message)
 
     def on_close(self):
         print("close")
+        self.keep_connection = False
 
     def init_event_listeners(self, identifier):
         def added_listener(user):
@@ -241,12 +255,13 @@ class ExistingValueChartHandler(tornado.web.RequestHandler):
             oid = bson.objectid.ObjectId(identifier)
         except Exception as e:
             try:
-                valueChartByName = valueChartsCollection.find_one({'fname': identifier, 'password': password})
+                valueChartByName = valueChartsCollection.find_one({'name': identifier, 'password': password})
             except Exception as e:
                 print("exception occurred ::", e)
                 raise tornado.web.HTTPError(400)
             else:
-                # valueChartByName['_id'] = str(valueChartByName['_id'])
+                if ("_id" in valueChartByName):
+                    valueChartByName['_id'] = str(valueChartByName['_id'])
                 wrapper_obj = {}
                 wrapper_obj['data'] = valueChartByName
                 self.write(json.dumps(wrapper_obj))

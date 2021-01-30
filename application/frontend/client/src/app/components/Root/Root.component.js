@@ -245,7 +245,7 @@ let RootComponent = /** @class */ (() => {
                             name and password.
         */
         joinValueChart(chartName, chartPassword) {
-            this.valueChartHttp.getValueChart(Formatter.nameToID(chartName), chartPassword)
+            this.valueChartHttp.getValueChartByName(chartName, chartPassword)
                 .subscribe((valueChart) => {
                 $('#chart-credentials-modal').modal('hide');
                 if (this.validateChartForJoining(valueChart)) {

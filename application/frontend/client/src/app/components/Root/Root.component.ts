@@ -290,7 +290,7 @@ export class RootComponent implements OnInit {
 	*/
 	joinValueChart(chartName: string, chartPassword: string): void {
 
-		this.valueChartHttp.getValueChart(Formatter.nameToID(chartName), chartPassword)
+		this.valueChartHttp.getValueChartByName(chartName, chartPassword)
 			.subscribe(
 				(valueChart: ValueChart) => {
 					$('#chart-credentials-modal').modal('hide');
