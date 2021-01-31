@@ -157,9 +157,9 @@ class HostWebSocketHandler(tornado.websocket.WebSocketHandler):
             keep_connection_obj['type'] = 5
             self.write_message(json.dumps(keep_connection_obj))
         
-        while self.keep_connection:
-            send_keep_connection()
-            time.sleep(5)
+        # while self.keep_connection:
+        #     send_keep_connection()
+        #     time.sleep(5)
 
 
     def on_message(self, message):
@@ -713,7 +713,7 @@ class JoinedChartsUserHandler(tornado.web.RequestHandler):
         statusCollection = self.application.mongo_db.ValueChartStatuses
 
         try:
-            documents = valueChartsCollection.find({"creator": username})
+            documents = valueChartsCollection.find({"users.username": username})
         except Exception as e:
             print("exception occurred ::", e)
             raise tornado.web.HTTPError(400)
