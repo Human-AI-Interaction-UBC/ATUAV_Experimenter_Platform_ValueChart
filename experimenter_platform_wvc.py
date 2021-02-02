@@ -239,6 +239,7 @@ class ValueChartHandler(tornado.web.RequestHandler):
                 print("exception occurred ::", e)
                 raise tornado.web.HTTPError(400)
             else:
+                print(inserted)
                 json_obj['_id'] = str(inserted.inserted_id)
                 wrapper_obj = {}
                 wrapper_obj['data'] = json_obj
@@ -362,7 +363,10 @@ class StructureValueChartHandler(tornado.web.RequestHandler):
         json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
         chartId = json_obj.pop('_id')
         oid = bson.objectid.ObjectId(chartId)
-        if valueChartsCollection.find_one({'fname': identifier}):
+
+        foundDocument = valueChartsCollection.find_one({'fname': identifier})
+        if foundDocument:
+            json_obj["users"] = foundDocument["users"]
             try:
                 valueChart = valueChartsCollection.replace_one({'_id': oid}, json_obj)
             except Exception as e:
@@ -396,7 +400,6 @@ class StatusValueChartHandler(tornado.web.RequestHandler):
             wrapper_obj = {}
             wrapper_obj['data'] = document
             self.write(json.dumps(wrapper_obj))            
-            self.write(json.dumps(document))
             self.flush()
         
 
