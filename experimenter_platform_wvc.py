@@ -614,7 +614,7 @@ class LoginUserHandler(tornado.web.RequestHandler):
         usersCollection = self.application.mongo_db.Users        
         json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
         login_result = False
-        if usersCollection.find_one({'username': json_obj["username"]}):
+        if usersCollection.find_one({'username': json_obj["username"], "password": json_obj["password"]}):
             login_result = True
         else:
             raise tornado.web.HTTPError(400) 
@@ -649,12 +649,11 @@ class ExistingUserHandler(tornado.web.RequestHandler):
         json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
 
         try:
-            document = usersCollection.replace_one({'username': username}, self.request.body)
+            document = usersCollection.replace_one({'username': username}, json_obj)
         except Exception as e:
             print("exception occurred ::", e)
             raise tornado.web.HTTPError(400)
         else:
-            json_obj["_id"] = document["_id"]
             self.write(json.dumps(json_obj))
             self.flush()
     
