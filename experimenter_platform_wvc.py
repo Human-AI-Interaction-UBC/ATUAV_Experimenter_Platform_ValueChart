@@ -321,8 +321,9 @@ class ExistingValueChartHandler(tornado.web.RequestHandler):
 
     def delete(self, identifier):
         valueChartsCollection = self.application.mongo_db.ValueCharts
+        oid = bson.objectid.ObjectId(identifier)
         try:
-             valueChartsCollection.find_one_and_delete({'_id': identifier})
+             valueChartsCollection.find_one_and_delete({'_id': oid})
         except Exception as e:
             print("exception occurred ::", e)
             raise tornado.web.HTTPError(400)
