@@ -408,17 +408,16 @@ class StatusValueChartHandler(tornado.web.RequestHandler):
         valueChartsCollection = self.application.mongo_db.ValueChartStatuses
         json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
 
-        oid = bson.objectid.ObjectId(identifier)
         try:
-            document = valueChartsCollection.find_one({'chartId': oid})
+            document = valueChartsCollection.find_one({'chartId': identifier})
         except Exception as e:
             print("exception occurred ::", e)
             raise tornado.web.HTTPError(400)
         else:
             if document:
                 try:
-                    json_obj['chartId'] = oid
-                    valueChart = valueChartsCollection.replace_one({'_id': oid}, json_obj)
+                    json_obj['chartId'] = identifier
+                    valueChart = valueChartsCollection.replace_one({'_id': document.oid}, json_obj)
                 except Exception as e:
                     print("exception occurred ::", e)
                     raise tornado.web.HTTPError(400)
