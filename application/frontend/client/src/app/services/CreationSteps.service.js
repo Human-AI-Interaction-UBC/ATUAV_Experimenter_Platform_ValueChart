@@ -267,13 +267,11 @@ let CreationStepsService = /** @class */ (() => {
                     status.chartId = this.valueChartService.getValueChart()._id;
                     this.valueChartHttp.setValueChartStatus(status).subscribe((newStatus) => { status = newStatus; });
                 }
-            }
-            // ,
-            // // Handle Server Errors
-            // (error) => {
-            // 	this.userNotificationService.displayWarnings(['Auto-saving failed']);
-            // }
-            );
+            }, 
+            // Handle Server Errors
+            (error) => {
+                this.userNotificationService.displayWarnings(['Auto-saving failed']);
+            });
         }
         /*
             @returns {void}
