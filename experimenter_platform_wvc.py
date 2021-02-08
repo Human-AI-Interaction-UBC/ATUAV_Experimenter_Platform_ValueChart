@@ -8,6 +8,10 @@ import json
 import random
 import sys
 import collections
+from pymongo import MongoClient
+import bson
+from pyee import EventEmitter
+
 
 # Imports required for EYE TRACKING Code:
 import time
@@ -60,25 +64,34 @@ class Application(tornado.web.Application):
         handlers = [
             (r"/", MainHandler),
             (r"/register", RegisterHandler),
-            (r"/Valueharts/", ValueChartHandler),
-            (r"/Valueharts/:chart", ExistingValueChartHandler),
-            (r"/Valueharts/:chart/id", IdValueChartHandler),
-            (r"/Valueharts/:chart/structure", StructureValueChartHandler),
-            (r"/Valueharts/:chart/status", StatusValueChartHandler),
-            (r"/Valueharts/:chart/users/", UsersValueChartHandler),
-            (r"/Valueharts/:chart/users/:username", UsernameValueChartHandler),
+            (r"/ValueCharts/", ValueChartHandler),
+            (r"/ValueCharts/(.*)/id", IdValueChartHandler),
+            (r"/ValueCharts/(.*)/structure", StructureValueChartHandler),
+            (r"/ValueCharts/(.*)/status", StatusValueChartHandler),
+            (r"/ValueCharts/(.*)/users/", UsersValueChartHandler),
+            (r"/ValueCharts/(.*)/users/(.*)", UsernameValueChartHandler),
+            (r"/ValueCharts/(.*)", ExistingValueChartHandler),
             (r"/Users/", UserHandler),
             (r"/Users/currentUser", CurrentUserHandler),
             (r"/Users/login", LoginUserHandler),
             (r"/Users/logout", LogoutUserHandler),
-            (r"/Users/:user", ExistingUserHandler),
-            (r"/Users/:user/OwnedValueCharts", OwnedChartsUserHandler),
-            (r"/Users/:user/JoinedValueCharts", JoinedChartsUserHandler),
-            (r"/host/:chart", HostHandler),
+            (r"/Users/(.*)/OwnedValueCharts", OwnedChartsUserHandler),
+            (r"/Users/(.*)/JoinedValueCharts", JoinedChartsUserHandler),
+            (r"/Users/(.*)", ExistingUserHandler),
+            (r"/host/(.*)", HostWebSocketHandler),
             (r"/websocket", MMDWebSocket, dict(websocket_dict = websocket_dict))
         ]
         #connects to database
         self.conn = sqlite3.connect('database.db')
+        # connects to database for webValueCharts
+        self.mongo_client = MongoClient('mongodb://localhost:27017/')
+        self.mongo_db = self.mongo_client.value_charts_db
+
+        self.event_emitter = EventEmitter()
+        self.USER_ADDED_EVENT = "userAdded"
+        self.USER_REMOVED_EVENT = "userRemoved"
+        self.USER_CHANGED_EVENT = "userChanged"
+        self.STRUCTURE_CHANGED_EVENT = "structureChanged"
         #"global variable" to save current UserID of session
         UserID = -1
         #global variable to track start and end times
@@ -125,6 +138,76 @@ class MMDWebSocket(ApplicationWebSocket):
     def on_close(self):
         self.app_state_control.logTask(user_id = self.application.cur_user)
 
+
+class HostWebSocketHandler(tornado.websocket.WebSocketHandler):
+    keep_connection = True
+
+    def open(self, identifier):
+        print('haha')
+        connection_obj = {}
+        connection_obj['data'] = "complete"
+        connection_obj['chartId'] = identifier
+        connection_obj['type'] = 4
+        self.write_message(json.dumps(connection_obj))
+
+        def send_keep_connection():
+            keep_connection_obj = {}
+            keep_connection_obj['data'] = "Keep connection Open"
+            keep_connection_obj['chartId'] = identifier
+            keep_connection_obj['type'] = 5
+            self.write_message(json.dumps(keep_connection_obj))
+        
+        # while self.keep_connection:
+        #     send_keep_connection()
+        #     time.sleep(5)
+
+
+    def on_message(self, message):
+        print("received message: " + message)
+
+    def on_close(self):
+        print("close")
+        self.keep_connection = False
+
+    def init_event_listeners(self, identifier):
+        def added_listener(user):
+            print("User added event detected")
+            connection_obj = {}
+            connection_obj['data'] = user
+            connection_obj['chartId'] = identifier
+            connection_obj['type'] = 4
+            self.write_message(json.dumps(connection_obj))
+
+        def removed_listener(username):
+            print("User removed event detected")
+            connection_obj = {}
+            connection_obj['data'] = username
+            connection_obj['chartId'] = identifier
+            connection_obj['type'] = 4
+            self.write_message(json.dumps(connection_obj))
+
+        def changed_listener(user):
+            print("User changed event detected")
+            connection_obj = {}
+            connection_obj['data'] = user
+            connection_obj['chartId'] = identifier
+            connection_obj['type'] = 4
+            self.write_message(json.dumps(connection_obj))
+
+        def structure_changed_listener(chart):
+            print("User added event detected")
+            connection_obj = {}
+            connection_obj['data'] = chart
+            connection_obj['chartId'] = identifier
+            connection_obj['type'] = 4
+            self.write_message(json.dumps(connection_obj))
+
+        self.application.event_emitter.on(self.application.USER_ADDED_EVENT + '-' + identifier, added_listener)
+        self.application.event_emitter.on(self.application.USER_REMOVED_EVENT + '-' + identifier, removed_listener)
+        self.application.event_emitter.on(self.application.USER_CHANGED_EVENT + '-' + identifier, changed_listener)
+        self.application.event_emitter.on(self.application.STRUCTURE_CHANGED_EVENT + '-' + identifier, structure_changed_listener)
+
+
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
         self.application.start_time = str(datetime.datetime.now().time())
@@ -141,288 +224,529 @@ class RegisterHandler(tornado.web.RequestHandler):
 
 class ValueChartHandler(tornado.web.RequestHandler):
     def post(self):
-        chart = self.get_argument('chart')
-        print ('selected chart',chart)
-        query_results = self.application.conn.execute('select * from VALUE CHART DB where chart=' + str(chart))
-        chart_data = query_results.fetchall()
+        # get the valueCharts collection
+        valueChartsCollection = self.application.mongo_db.ValueCharts
         json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
-        if (len(chart_data) != 0):
-            raise tornado.web.HTTPError(400)
+        fname = json_obj['fname']
+        print ('fname: ' + fname)
+
+        if valueChartsCollection.find_one({'fname': fname}):
+            raise tornado.web.HTTPError(400) 
         else:
-            self.application.conn.execute('INSERT INTO value chart db VALUES (?,?,?,?,?)', json_obj)
-            self.application.conn.commit()
-            self.render('/ValueCharts/' + json_obj['_id'])
+            try:
+                inserted = valueChartsCollection.insert_one(json_obj)
+            except Exception as e:
+                print("exception occurred ::", e)
+                raise tornado.web.HTTPError(400)
+            else:
+                print(inserted)
+                json_obj['_id'] = str(inserted.inserted_id)
+                wrapper_obj = {}
+                wrapper_obj['data'] = json_obj
+                self.write(json.dumps(wrapper_obj))
+                self.flush()
+
 
 class ExistingValueChartHandler(tornado.web.RequestHandler):
-    def get(self):
-        chart = self.get_argument('chart')
-        print ('selected chart',chart)
-        uri = self.request.uri.split('?')
-        # get identifier (either id or name) and password from uri
-        identifier = uri[0][1:]
-        password = uri[1].split('=')[1]
-        query_results = self.application.conn.execute('select * from VALUE CHART DB where chart=' + str(chart))
-        chart_data = query_results.fetchall()
-       
-        if (len(chart_data) != 0):
-            raise tornado.web.HTTPError(400)
-        else:
-            by_id = self.application.conn.execute('select * from VALUE CHART DB where id=' + str(identifier) + 'and password=' + str(password))
-            id_results = by_id.fetchall()
-            by_name = self.application.conn.execute('select * from VALUE CHART DB where fname=' + str(identifier) + 'and password=' + str(password))
-            name_results = by_name.fetchall()
-            if (len(id_results) > 0 or len(name_results) > 0):
-                self.render('/ValueCharts/' + identifier)
-                self.write(json.dumps(id_results)) if len(id_results) > 0 else self.write(json.dumps(name_results))
-            else:
-                raise tornado.web.HTTPError(404)
+    def get(self, identifier):
+        valueChartsCollection = self.application.mongo_db.ValueCharts
+        password = self.get_query_argument("password", None)
 
-    def put(self):
+        try:
+            oid = bson.objectid.ObjectId(identifier)
+        except Exception as e:
+            try:
+                valueChartByName = valueChartsCollection.find_one({'name': identifier, 'password': password})
+            except Exception as e:
+                print("exception occurred ::", e)
+                raise tornado.web.HTTPError(400)
+            else:
+                if ("_id" in valueChartByName):
+                    valueChartByName['_id'] = str(valueChartByName['_id'])
+                wrapper_obj = {}
+                wrapper_obj['data'] = valueChartByName
+                self.write(json.dumps(wrapper_obj))
+                self.flush()
+        else:
+            try:
+                valueChartById = valueChartsCollection.find_one({'_id': oid, 'password': password})
+            except Exception as e:
+                print("exception occurred ::", e)
+                raise tornado.web.HTTPError(400)
+            else:
+                valueChartById['_id'] = identifier
+                wrapper_obj = {}
+                wrapper_obj['data'] = valueChartById
+                self.write(json.dumps(wrapper_obj))
+                self.flush()
+            
+
+    def put(self, identifier):
         # endpoint does not exist in frontend?
         # supposed to update an existing ValueChart or create one if it does not exist
-        chart = self.get_argument('chart')
-        
-        query_results = self.application.conn.execute('select * from study_progress where user_id=' + str(userOptions))
-        user_data = query_results.fetchall()
+        valueChartsCollection = self.application.mongo_db.ValueCharts
+        json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
+        json_obj.pop('_id')
 
-    def delete(self):
-        chart = self.get_argument('chart')
-        identifier = self.request.uri[1:]
+        print(identifier)
+        oid = bson.objectid.ObjectId(identifier)
+        if valueChartsCollection.find_one({'_id': oid}):
+            try:
+                valueChartByName = valueChartsCollection.replace_one({'_id': oid}, json_obj)
+            except Exception as e:
+                print("exception occurred ::", e)
+                raise tornado.web.HTTPError(400)
+            else:
+                json_obj['_id'] = identifier
+                self.application.event_emitter.emit(self.application.STRUCTURE_CHANGED_EVENT + '-' + identifier, json_obj)
+                wrapper_obj = {}
+                wrapper_obj['data'] = json_obj
+                self.write(json.dumps(wrapper_obj))
+                self.flush()
 
-        self.application.conn.execute('delete from VALUE CHART DB where id=' + identifier)
-        self.application.conn.commit()
+        else:
+            try:
+                inserted = valueChartsCollection.insert_one(json_obj)
+            except Exception as e:
+                print("exception occurred ::", e)
+                raise tornado.web.HTTPError(400)
+            else:
+                json_obj['_id'] = identifier
+                self.application.event_emitter.emit(self.application.STRUCTURE_CHANGED_EVENT + '-' + identifier, json_obj)
+                wrapper_obj = {}
+                wrapper_obj['data'] = json_obj
+                self.write(json.dumps(wrapper_obj))
+                self.flush()
+
+
+    def delete(self, identifier):
+        valueChartsCollection = self.application.mongo_db.ValueCharts
+        oid = bson.objectid.ObjectId(identifier)
+        try:
+             valueChartsCollection.find_one_and_delete({'_id': oid})
+        except Exception as e:
+            print("exception occurred ::", e)
+            raise tornado.web.HTTPError(400)
+        else:
+            self.write('deleted')
 
 
 
 class IdValueChartHandler(tornado.web.RequestHandler):
-    def get(self):
-        uri = self.request.uri.split('/')
-        # get identifier (either id or name) and password from uri
-        identifier = uri[0][1:]
-        query_results = self.application.conn.execute('select * from VALUE CHART DB where id=' + str(identifier))
-        chart_data = query_results.fetchall()
-       
-        if (len(chart_data) != 0):
-            self.render('/ValueCharts/' + identifier)
+    def get(self, identifier):
+        valueChartsCollection = self.application.mongo_db.ValueCharts        
+        if valueChartsCollection.find_one({'fname': identifier}):
             self.write(json.dumps(identifier))
+            self.flush()
         else:
-           raise tornado.web.HTTPError(404)
+            raise tornado.web.HTTPError(400)          
 
 
 class StructureValueChartHandler(tornado.web.RequestHandler):
-    def get(self):
-        users_list = self.loadUsersList()
-        self.render('resume.html', users = users_list)
+    def get(self, identifier):
+        uri = self.request.uri.split('?')
+        # get identifier (either id or name) and password from uri
+        password = uri[1].split('=')[1]
+        valueChartsCollection = self.application.mongo_db.ValueCharts        
+        try:
+            valueChart = valueChartsCollection.find_one({'fname': identifier})
+        except Exception as e:
+            raise tornado.web.HTTPError(400)   
+        else:
+            valueChart.users = None
+            self.write(json.dumps(valueChart))
+            self.flush()
 
-    def post(self):
-        userOptions = self.get_argument('userOptions')
-        self.application.cur_user = userOptions
-        query_results = self.application.conn.execute('select * from study_progress where user_id=' + str(userOptions))
-        user_data = query_results.fetchall()
+
+    def put(self, chart):
+        valueChartsCollection = self.application.mongo_db.ValueCharts
+        identifier = chart
+        json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
+        chartId = json_obj.pop('_id')
+        oid = bson.objectid.ObjectId(chartId)
+
+        foundDocument = valueChartsCollection.find_one({'fname': identifier})
+        if foundDocument:
+            json_obj["users"] = foundDocument["users"]
+            try:
+                valueChart = valueChartsCollection.replace_one({'_id': oid}, json_obj)
+            except Exception as e:
+                print("exception occurred ::", e)
+                raise tornado.web.HTTPError(400)
+            else:
+                json_obj['users'] = None
+                json_obj['_id'] = chartId
+
+                self.application.event_emitter.emit(self.application.STRUCTURE_CHANGED_EVENT + '-' + chartId, json_obj)
+                wrapper_obj = {}
+                wrapper_obj['data'] = json_obj
+                self.write(json.dumps(wrapper_obj))
+                self.flush()
+
+        else:
+            raise tornado.web.HTTPError(404)
+
 
 
 class StatusValueChartHandler(tornado.web.RequestHandler):
-    def get(self):
-        users_list = self.loadUsersList()
-        self.render('resume.html', users = users_list)
+    def get(self, identifier):
+        valueChartsCollection = self.application.mongo_db.ValueChartStatuses        
+        try:
+            document = valueChartsCollection.find_one({'chartId': identifier})
+        except Exception as e:
+            print("exception occurred ::", e)
+            raise tornado.web.HTTPError(400)
+        else:
+            document['_id'] = str(document['_id'])
+            wrapper_obj = {}
+            wrapper_obj['data'] = document
+            self.write(json.dumps(wrapper_obj))            
+            self.flush()
+        
 
-    def put(self):
-        userOptions = self.get_argument('userOptions')
-        self.application.cur_user = userOptions
-        query_results = self.application.conn.execute('select * from study_progress where user_id=' + str(userOptions))
-        user_data = query_results.fetchall()
+    def put(self, identifier):
+        valueChartsCollection = self.application.mongo_db.ValueChartStatuses
+        json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
+
+        try:
+            document = valueChartsCollection.find_one({'chartId': identifier})
+        except Exception as e:
+            print("exception occurred ::", e)
+            raise tornado.web.HTTPError(400)
+        else:
+            if document:
+                try:
+                    json_obj['chartId'] = identifier
+                    valueChart = valueChartsCollection.replace_one({'_id': document.oid}, json_obj)
+                except Exception as e:
+                    print("exception occurred ::", e)
+                    raise tornado.web.HTTPError(400)
+                else:
+                    json_obj['_id'] = identifier
+                    wrapper_obj = {}
+                    wrapper_obj['data'] = json_obj
+                    self.write(json.dumps(wrapper_obj))
+                    self.flush()
+            else:
+                try:
+                    inserted = valueChartsCollection.insert_one(json_obj)
+                except Exception as e:
+                    print("exception occurred ::", e)
+                    raise tornado.web.HTTPError(400)
+                else:
+                    json_obj['_id'] = identifier
+                    wrapper_obj = {}
+                    wrapper_obj['data'] = json_obj
+                    self.write(json.dumps(wrapper_obj))
+                    self.flush()
+
+    
+    def delete(self, identifier):
+        valueChartsCollection = self.application.mongo_db.ValueChartStatuses
+        try:
+             valueChartsCollection.find_one_and_delete({'chartId': identifier})
+        except Exception as e:
+            print("exception occurred ::", e)
+            raise tornado.web.HTTPError(400)
+        else:
+            self.write('deleted')
+            self.flush()
 
 
 class UsersValueChartHandler(tornado.web.RequestHandler):
-    def get(self):
-        users_list = self.loadUsersList()
-        self.render('resume.html', users = users_list)
+    def post(self, identifier):
+        valueChartsCollection = self.application.mongo_db.ValueCharts
+        json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
 
-    def post(self):
-        userOptions = self.get_argument('userOptions')
-        self.application.cur_user = userOptions
-        query_results = self.application.conn.execute('select * from study_progress where user_id=' + str(userOptions))
-        user_data = query_results.fetchall()
+        try:
+            document = valueChartsCollection.find_one({'chartId': identifier})
+        except Exception as e:
+            print("exception occurred ::", e)
+            raise tornado.web.HTTPError(400)
+        else:
+            if document:
+                document["users"].append(json_obj)
+                try:
+                    valueChart = valueChartsCollection.replace_one({'_id': document._id}, document)
+                except Exception as e:
+                    print("exception occurred ::", e)
+                    raise tornado.web.HTTPError(400)
+                else:
+                    self.application.event_emitter.emit(self.application.USER_ADDED_EVENT + '-' + identifier, json_obj)
+                    self.write(json.dumps(json_obj))
+                    self.flush()
+            else:
+                raise tornado.web.HTTPError(404)
+
+    
+    def put(self, identifier):
+        valueChartsCollection = self.application.mongo_db.ValueCharts
+        json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
+
+        try:
+            document = valueChartsCollection.find_one({'_id': identifier})
+        except Exception as e:
+            print("exception occurred ::", e)
+            raise tornado.web.HTTPError(400)
+        else:
+            if document:
+                deleted_users = '' # find fn to get difference between 2 jsons by username
+                new_users = ''
+                try:
+                    valueChart = valueChartsCollection.replace_one({'_id': document._id}, json_obj)
+                except Exception as e:
+                    print("exception occurred ::", e)
+                    raise tornado.web.HTTPError(400)
+                else:
+                    self.write(json.dumps(json_obj))
+                    self.flush()
+            else:
+                raise tornado.web.HTTPError(404)
 
 
 class UsernameValueChartHandler(tornado.web.RequestHandler):
-    def get(self):
-        users_list = self.loadUsersList()
-        self.render('resume.html', users = users_list)
+    def put(self, identifier, username):
+        valueChartsCollection = self.application.mongo_db.ValueCharts
+        json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
 
-    def post(self):
-        userOptions = self.get_argument('userOptions')
-        self.application.cur_user = userOptions
-        query_results = self.application.conn.execute('select * from study_progress where user_id=' + str(userOptions))
-        user_data = query_results.fetchall()
+        oid = bson.objectid.ObjectId(identifier)
+        try:
+            document = valueChartsCollection.find_one({'_id': oid})
+        except Exception as e:
+            print("exception occurred ::", e)
+            raise tornado.web.HTTPError(400)
+        else:
+            userExists = False
+            if document is not None:
+                try:
+                    userIndex = document["users"].index(username)
+                except Exception as e:
+                    userExists = False
+                    document['users'].append(json_obj)
+                else:
+                    userExists = True
+                    document["users"][userIndex] = json_obj
+
+                try:
+                    valueChart = valueChartsCollection.replace_one({'_id': oid}, document)
+                except Exception as e:
+                    print("exception occurred ::", e)
+                    raise tornado.web.HTTPError(400)
+                else:
+                    json_obj['_id'] = identifier
+            
+                    if userExists:
+                        self.application.event_emitter.emit(self.application.USER_CHANGED_EVENT + '-' + identifier, json_obj)
+                    else:
+                        self.application.event_emitter.emit(self.application.USER_ADDED_EVENT + '-' + identifier, json_obj)
+                    
+                    wrapper_obj = {}
+                    wrapper_obj['data'] = json_obj
+                    self.write(json.dumps(wrapper_obj))
+                    self.flush()
+            else:
+                raise tornado.web.HTTPError(404)
+
+
+    def delete(self, identifier, username):
+        valueChartsCollection = self.application.mongo_db.ValueCharts
+        uri = self.request.uri.split('/')
+        json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
+
+        try:
+            document = valueChartsCollection.find_one({'_id': identifier})
+        except Exception as e:
+            print("exception occurred ::", e)
+            raise tornado.web.HTTPError(400)
+        else:
+            if document is not None:
+                try:
+                    userIndex = document["users"].index(username)
+                except Exception as e:
+                    print("exception occorred ::", e)
+                else:
+                    document["users"].pop(userIndex) # not sure what index to use for pop, or if there is better way to rm elem
+                    try:
+                        valueChart = valueChartsCollection.replace_one({'_id': document._id}, document)
+                    except Exception as e:
+                        print("exception occurred ::", e)
+                        raise tornado.web.HTTPError(400)
+                    else:
+                        self.application.event_emitter.emit(self.application.USER_REMOVED_EVENT + '-' + identifier, username)
+            else:
+                raise tornado.web.HTTPError(404)
 
 
 
 class UserHandler(tornado.web.RequestHandler):
-    def get(self):
-        #displays contents of index.html
-        self.application.start_time = str(datetime.datetime.now().time())
-        mmdQuestions = self.loadMMDQuestions()
-        noofMMD = len(self.application.mmd_order)
-        progress = str(self.application.mmd_index)+ ' of '+ str(noofMMD)
-        self.render('questionnaire.html', mmd=self.application.cur_mmd, progress = progress, questions = mmdQuestions)
-        print("finished rendering qustionnaire")
-
-
     def post(self):
-        answers = self.get_argument('answers')
+        usersCollection = self.application.mongo_db.Users        
+        json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
 
-        answers = json.loads(answers)
-
-
-        self.application.end_time = str(datetime.datetime.now().time())
-        questionnaire_data = [
-        self.application.cur_user, self.application.cur_mmd, self.application.start_time, self.application.end_time]
-
-        task_data = (self.application.cur_user, self.application.cur_mmd,'questions' ,self.application.start_time, self.application.end_time)
-        self.application.conn.execute('INSERT INTO MMD_performance VALUES (?,?,?,?,?)', task_data)
-        self.application.conn.commit()
-
-        i =1
-        for a in answers:
-            #questionnaire_data.append(a)
-            answer_data = (self.application.cur_user, self.application.cur_mmd,i, a[0],a[1])
-            self.application.conn.execute('INSERT INTO Questions_results VALUES (?,?,?,?,?)', answer_data)
-            i = i+1
-
-        #print tuple(questionnaire_data)
-
-
-        self.application.conn.commit()
-
-        self.application.conn.execute('INSERT INTO Study_progress VALUES (?,?,?,?)', [  self.application.cur_user,'mmd' ,self.application.cur_mmd, str(datetime.datetime.now().time())])
-        self.application.conn.commit()
-        #refers to database connected to in 'class Application'
-        #database = self.application.db.database
-        #empty entry to insert into database in order to generate a user id
-        #entry = {}
-        #inserts empty entry and saves it to UserID variable in 'class Application'
-        #self.application.UserID = database.insert_one(entry).inserted_id
-        #print self.application.UserID
-
-        self.redirect('/mmd')
-
-    def loadMMDQuestions (self):
-        conn = sqlite3.connect('database_questions.db')
-        query_results = conn.execute('select * from MMD_questions where mmd_id='+str(self.application.cur_mmd))
-
-        # hard-coded two questions as they appear in all mmds
-        questions = []
-        questions.append([self.application.cur_mmd, "1", "The snippet I read was easy to understand.", "Likert", "Subjective"])
-        questions.append([self.application.cur_mmd, "2", "I would be interested in reading the full article.", "Likert", "Subjective"])
-        questions.extend(query_results.fetchall())
-
-        return json.dumps(questions)
+        if usersCollection.find_one({'username': json_obj["username"]}):
+            raise tornado.web.HTTPError(400) 
+        else:
+            try:
+                inserted = usersCollection.insert_one(json_obj)
+            except Exception as e:
+                print("exception occurred ::", e)
+                raise tornado.web.HTTPError(400)
+            else:
+                self.write(self.request.body)
+                self.flush()
+        # figure out how to do authentication
 
 
 class CurrentUserHandler(tornado.web.RequestHandler):
     def get(self):
-        users_list = self.loadUsersList()
-        self.render('resume.html', users = users_list)
+        usersCollection = self.application.mongo_db.Users        
+        json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
 
-    def post(self):
-        userOptions = self.get_argument('userOptions')
-        self.application.cur_user = userOptions
-        query_results = self.application.conn.execute('select * from study_progress where user_id=' + str(userOptions))
-        user_data = query_results.fetchall()
+        if usersCollection.find_one({'username': json_obj["username"]}):
+            self.write(self.request.body)
+            self.flush()
+        else:
+            raise tornado.web.HTTPError(400)    
 
 
 class LoginUserHandler(tornado.web.RequestHandler):
-    def get(self):
-        users_list = self.loadUsersList()
-        self.render('resume.html', users = users_list)
-
     def post(self):
-        userOptions = self.get_argument('userOptions')
-        self.application.cur_user = userOptions
-        query_results = self.application.conn.execute('select * from study_progress where user_id=' + str(userOptions))
-        user_data = query_results.fetchall()
+        usersCollection = self.application.mongo_db.Users        
+        json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
+        login_result = False
+        if usersCollection.find_one({'username': json_obj["username"], "password": json_obj["password"]}):
+            login_result = True
+        else:
+            raise tornado.web.HTTPError(400) 
+        self.write(json.dumps({"data": {"username": json_obj["username"], "password":json_obj["password"], "loginResult": login_result}}))
+        self.flush()
 
 
 class LogoutUserHandler(tornado.web.RequestHandler):
     def get(self):
-        users_list = self.loadUsersList()
-        self.render('resume.html', users = users_list)
-
-    def post(self):
-        userOptions = self.get_argument('userOptions')
-        self.application.cur_user = userOptions
-        query_results = self.application.conn.execute('select * from study_progress where user_id=' + str(userOptions))
-        user_data = query_results.fetchall()
+        self.write(json.dumps({"loginResult": False}))
+        self.flush()
+        #destroy current user session
 
 
 class ExistingUserHandler(tornado.web.RequestHandler):
-    def get(self):
-        users_list = self.loadUsersList()
-        self.render('resume.html', users = users_list)
+    def get(self, username):
+        usersCollection = self.application.mongo_db.Users        
+        try:
+            document = usersCollection.find_one({'username': username})
+        except Exception as e:
+            print("exception occurred ::", e)
+            raise tornado.web.HTTPError(400)
+        else:
+            document['_id'] = str(document['_id'])
+            wrapper_obj = {}
+            wrapper_obj['data'] = document
+            self.write(json.dumps(wrapper_obj))
+            self.flush()
 
-    def post(self):
-        userOptions = self.get_argument('userOptions')
-        self.application.cur_user = userOptions
-        query_results = self.application.conn.execute('select * from study_progress where user_id=' + str(userOptions))
-        user_data = query_results.fetchall()
+    def put(self, username):
+        usersCollection = self.application.mongo_db.Users        
+        json_obj = json.loads(self.request.body, object_pairs_hook=collections.OrderedDict)
+
+        try:
+            document = usersCollection.replace_one({'username': username}, json_obj)
+        except Exception as e:
+            print("exception occurred ::", e)
+            raise tornado.web.HTTPError(400)
+        else:
+            self.write(json.dumps(json_obj))
+            self.flush()
+    
+
+    def delete(self, username):
+        usersCollection = self.application.mongo_db.Users
+        try:
+             usersCollection.find_one_and_delete({'username': username})
+        except Exception as e:
+            print("exception occurred ::", e)
+            raise tornado.web.HTTPError(400)
+        else:
+            self.write('deleted')
+            self.flush()
 
 
 class OwnedChartsUserHandler(tornado.web.RequestHandler):
-    def get(self):
-        users_list = self.loadUsersList()
-        self.render('resume.html', users = users_list)
+    def get(self, username):
+        valueChartsCollection = self.application.mongo_db.ValueCharts
+        statusCollection = self.application.mongo_db.ValueChartStatuses
 
-    def post(self):
-        userOptions = self.get_argument('userOptions')
-        self.application.cur_user = userOptions
-        query_results = self.application.conn.execute('select * from study_progress where user_id=' + str(userOptions))
-        user_data = query_results.fetchall()
+        try:
+            documents = valueChartsCollection.find({"creator": username})
+        except Exception as e:
+            print("exception occurred ::", e)
+            raise tornado.web.HTTPError(400)
+        else:
+            summaries = []
+            for doc in documents:
+                try:
+                    stringId = str(doc['_id'])
+                    status = statusCollection.find_one({"chartId": stringId})
+                except Exception as e:
+                    print("exception occurred ::", e)
+                    raise tornado.web.HTTPError(400)
+                else:
+                    if (status is not None):
+                        summaries.append(
+                            {"_id": stringId, "name": doc["name"], "description": doc["description"], "numUsers": len(doc["users"]),"numAlternatives": len(doc["alternatives"]),
+                            "password": doc["password"], "lockedBySystem": status["lockedBySystem"], "lockedByCreator": status["lockedByCreator"]})
+                    else:
+                        print("exception occurred ::")
+                        raise tornado.web.HTTPError(400)
+            
+            def get_name(summary):
+                return summary["name"]
+            
+            summaries.sort(key=get_name)
+            
+            wrapper_obj = {}
+            wrapper_obj['data'] = summaries
+            self.write(json.dumps(wrapper_obj))
+            self.flush()
 
 
 class JoinedChartsUserHandler(tornado.web.RequestHandler):
-    def get(self):
-        users_list = self.loadUsersList()
-        self.render('resume.html', users = users_list)
+    def get(self, username):
+        valueChartsCollection = self.application.mongo_db.ValueCharts
+        statusCollection = self.application.mongo_db.ValueChartStatuses
 
-    def post(self):
-        userOptions = self.get_argument('userOptions')
-        self.application.cur_user = userOptions
-        query_results = self.application.conn.execute('select * from study_progress where user_id=' + str(userOptions))
-        user_data = query_results.fetchall()
-
-class HostHandler(tornado.web.RequestHandler):
-    def get(self):
-        #displays contents of index.html
-        self.application.start_time = str(datetime.datetime.now().time())
-        if self.application.mmd_index<len(self.application.mmd_order):
-            self.application.cur_mmd = self.application.mmd_order[self.application.mmd_index]
-
-            if (self.application.show_question_only):
-                self.redirect('/questionnaire')
-            else:
-                self.render('MMDExperimenter.html', mmd=str(self.application.cur_mmd))
-            self.application.mmd_index+=1
+        try:
+            documents = valueChartsCollection.find({"users.username": username})
+        except Exception as e:
+            print("exception occurred ::", e)
+            raise tornado.web.HTTPError(400)
         else:
-            self.redirect('/done')
-
-    def post(self):
-        #refers to database connected to in 'class Application'
-        #database = self.application.db.database
-        #empty entry to insert into database in order to generate a user id
-        #entry = {}
-        #inserts empty entry and saves it to UserID variable in 'class Application'
-        #self.application.UserID = database.insert_one(entry).inserted_id
-        #print self.application.UserID
-
-        #self.application.cur_user = random.randint(0, 1000)  #random number for now
-        print ("POST RECEIVED")
-        self.application.end_time = str(datetime.datetime.now().time())
-        task_data = (self.application.cur_user, self.application.cur_mmd,'mmd' ,self.application.start_time, self.application.end_time)
-        self.application.conn.execute('INSERT INTO MMD_performance VALUES (?,?,?,?,?)', task_data)
-        self.application.conn.commit()
-        self.redirect('/questionnaire')
-
+            summaries = []
+            for doc in documents:
+                try:
+                    stringId = str(doc['_id'])
+                    status = statusCollection.find_one({"chartId": stringId})
+                    
+                except Exception as e:
+                    print("exception occurred ::", e)
+                    raise tornado.web.HTTPError(400)
+                else:
+                    if (status is not None):
+                        summaries.append(
+                            {"_id": stringId, "name": doc["name"], "description": doc["description"], "numUsers": len(doc["users"]),"numAlternatives": len(doc["alternatives"]),
+                            "password": doc["password"], "lockedBySystem": status["lockedBySystem"], "lockedByCreator": status["lockedByCreator"]})
+                    else:
+                        print("exception occurred ::")
+                        raise tornado.web.HTTPError(400)
+            
+            def get_name(summary):
+                return summary["name"]
+            
+            summaries.sort(key=get_name)
+            
+            wrapper_obj = {}
+            wrapper_obj['data'] = summaries
+            self.write(json.dumps(wrapper_obj))
+            self.flush()
 
 
 #main function is first thing to run when application starts

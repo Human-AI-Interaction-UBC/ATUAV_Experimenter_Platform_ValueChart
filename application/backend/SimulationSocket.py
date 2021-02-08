@@ -27,7 +27,7 @@ class SimulationSocket(object):
             msg2 = "400,450,"+str(i)
             msg = msg1
             current_message = 1
-            print (msg)
+            # print (msg)
             if msg is not None:
                 if self.track_data:
                     if (i % 10) == 0:
@@ -35,7 +35,6 @@ class SimulationSocket(object):
                         current_message = 2 if current_message == 1 else 1 
                     msg = msg.split(",")
                     self.tobii_controller.on_gazedata_simulation(float(msg[0]), float(msg[1]), float(msg[2]) * 20000)
-                    #print "msg"
                     yield gen.sleep(.1)
                     i += 1
             else:
