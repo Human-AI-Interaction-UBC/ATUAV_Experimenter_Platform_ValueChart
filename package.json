@@ -22,7 +22,7 @@
     "@angular/platform-server": "^4.3.6",
     "@angular/router": "^4.3.6",
     "body-parser": "^1.15.2",
-    "bootstrap": "^3.3.7",
+    "bootstrap": "^3.4.1",
     "cookie-parser": "^1.4.3",
     "core-js": "^2.5.0",
     "d3": "^4.10.0",
